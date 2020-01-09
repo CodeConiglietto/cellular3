@@ -58,6 +58,32 @@ impl From<Color> for GGColor {
     }
 }
 
+struct Rule {
+    survive_neighbours: [i32; 8],
+    born_neighbours: [i32; 8],
+}
+
+//One of these per colour
+struct RuleSet {
+    red_rule: Rule,
+    green_rule: Rule,
+    blue_rule: Rule,
+    cyan_rule: Rule,
+    magenta_rule: Rule,
+    yellow_rule: Rule,
+}
+
+struct SimpleColor {
+    has_black: bool,
+    has_red: bool,
+    has_green: bool,
+    has_blue: bool,
+    has_cyan: bool,
+    has_magenta: bool,
+    has_yellow: bool,
+    has_white: bool
+}
+
 struct MyGame {
     //Cell mesh to reuse
     square: Mesh,
@@ -68,6 +94,13 @@ struct MyGame {
     //The actual cell array
     cell_array: Array2<Color>,
     old_cell_array: Array2<Color>,
+
+    red_rule: RuleSet,
+    green_rule: RuleSet,
+    blue_rule: RuleSet,
+    cyan_rule: RuleSet,
+    magenta_rule: RuleSet,
+    yellow_rule: RuleSet,
 }
 
 impl MyGame {
