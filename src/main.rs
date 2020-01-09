@@ -1,15 +1,14 @@
 use ggez::conf::WindowMode;
 use ggez::event::{self, EventHandler};
-use ggez::graphics::Color;
+use ggez::graphics::Color as GGColor;
 use ggez::graphics::DrawMode;
 use ggez::graphics::DrawParam;
 use ggez::graphics::Mesh;
 use ggez::graphics::Rect;
-use ggez::graphics::BLACK;
-use ggez::graphics::WHITE;
 use ggez::{graphics, Context, ContextBuilder, GameResult};
-use ndarray::Array2;
+use ndarray::{Array2, ArrayView2};
 use rand::random;
+use rayon::prelude::*;
 
 fn main() {
     // Make a Context.
@@ -34,6 +33,31 @@ fn main() {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+}
+
+const BLACK: Color = Color { r: 0, g: 0, b: 0 };
+const WHITE: Color = Color {
+    r: 255,
+    g: 255,
+    b: 255,
+};
+
+impl From<Color> for GGColor {
+    fn from(c: Color) -> GGColor {
+        GGColor {
+            r: c.r as f32 / 255.0,
+            g: c.g as f32 / 255.0,
+            b: c.b as f32 / 255.0,
+            a: 1.0,
+        }
+    }
+}
+
 struct MyGame {
     //Cell mesh to reuse
     square: Mesh,
@@ -51,8 +75,8 @@ impl MyGame {
         // Load/create resources such as images here.
         let (pixels_x, pixels_y) = ggez::graphics::size(ctx);
 
-        let cells_x = 256;
-        let cells_y = 144;
+        let cells_x = 160;
+        let cells_y = 90;
 
         let cell_width = pixels_x as f32 / cells_x as f32;
         let cell_height = pixels_y as f32 / cells_y as f32;
@@ -63,164 +87,216 @@ impl MyGame {
                 ctx,
                 DrawMode::fill(),
                 Rect::new(0.0, 0.0, cell_width, cell_height),
-                BLACK,
+                WHITE.into(),
             )
             .unwrap(),
 
             current_tic: 0,
 
             bounds: Rect::new(0.0, 0.0, pixels_x, pixels_y),
-            cell_array: Array2::from_elem((cells_x, cells_y), WHITE),
+            cell_array: Array2::from_shape_fn((cells_x, cells_y), |(_x, _y)| -> Color {
+                get_random_color()
+            }),
             old_cell_array: Array2::from_shape_fn((cells_x, cells_y), |(_x, _y)| -> Color {
-                if random::<i32>() % 2 == 0 {
-                    BLACK //The cell is born alive
-                } else {
-                    WHITE //The cell is born dead
-                }
+                get_random_color()
             }),
         }
-    }
-
-    //This function assumes an x and y between the ranges -dim().<dimension>..infinity
-    pub fn wrap_point_to_cell_array(&self, x: i32, y: i32) -> (i32, i32) {
-        let width = self.cell_array.dim().0 as i32;
-        let height = self.cell_array.dim().1 as i32;
-
-        ((x + width) % width, (y + height) % height)
-    }
-
-    //TODO: Finish implementing
-    pub fn get_alive_neighbours(&self, x: i32, y: i32) -> (i32, i32, i32) {
-        let mut alive_red_neighbours = 0;
-        let mut alive_green_neighbours = 0;
-        let mut alive_blue_neighbours = 0;
-
-        for xx in -1..2 {
-            for yy in -1..2 {
-                if !(xx == 0 && yy == 0) {
-                    let offset_point = self.wrap_point_to_cell_array(x + xx, y + yy);
-
-                    let neighbour_color =
-                        self.old_cell_array[[offset_point.0 as usize, offset_point.1 as usize]];
-
-                    if has_red(neighbour_color) {
-                        alive_red_neighbours += 1;
-                    }
-                    if has_green(neighbour_color) {
-                        alive_green_neighbours += 1;
-                    }
-                    if has_blue(neighbour_color) {
-                        alive_blue_neighbours += 1;
-                    }
-                }
-            }
-        }
-
-        (alive_red_neighbours, alive_green_neighbours, alive_blue_neighbours)
-    }
-
-    fn get_next_color(&self, x: i32, y: i32) -> Color
-    {
-        let (alive_red_neighbours, alive_blue_neighbours, alive_green_neighbours) = self.get_alive_neighbours(x, y);
-
-        let old_color = self.old_cell_array[[x as usize, y as usize]];
-        let current_color = self.cell_array[[x as usize, y as usize]];
-
-        let &mut new_color = WHITE;
-        let old_color = self.old_cell_array[[x as usize, y as usize]];
-        
-        //Run red sim
-        if has_red(old_color)//Red cell is alive
-        {
-            if alive_red_neighbours == 2 || alive_red_neighbours == 3
-            {
-                new_color = give_red(new_color);//Cell survives
-            }else{
-                new_color = take_red(new_color);//Cell dies of overpopulation or starvation
-            }
-        }else{
-            if alive_red_neighbours == 3
-            {
-                new_color = give_red(new_color);//Cell is born
-            }else{
-                new_color = take_red(new_color);//Cell remains dead
-            }
-        }
-
-        //run green sim
-        if has_green(old_color)//Green cell is alive
-        {
-            if alive_green_neighbours == 2 || alive_green_neighbours == 3
-            {
-                new_color = give_green(new_color);//Cell survives
-            }else{
-                new_color = take_green(new_color);//Cell dies of overpopulation or starvation
-            }
-        }else{
-            if alive_green_neighbours == 3
-            {
-                new_color = give_green(new_color);//Cell is born
-            }else{
-                new_color = take_green(new_color);//Cell remains dead
-            }
-        }
-
-        //run blue sim
-        if has_blue(old_color)//Blue cell is alive
-        {
-            if alive_blue_neighbours == 2 || alive_blue_neighbours == 3
-            {
-                new_color = give_blue(new_color);//Cell survives
-            }else{
-                new_color = take_blue(new_color);//Cell dies of overpopulation or starvation
-            }
-        }else{
-            if alive_blue_neighbours == 3
-            {
-                new_color = give_blue(new_color);//Cell is born
-            }else{
-                new_color = take_blue(new_color);//Cell remains dead
-            }
-        }
-
-        *new_color
     }
 }
 
 fn has_red(c: Color) -> bool {
-    c.r == 1.0
+    c.r == 255
 }
 fn has_green(c: Color) -> bool {
-    c.g == 1.0
+    c.g == 255
 }
 fn has_blue(c: Color) -> bool {
-    c.b == 1.0
+    c.b == 255
 }
 
-fn give_red(c: &mut Color) -> &mut Color {
-    c.r = 1.0;
-    c
-}
-fn give_green(c: &mut Color) -> &mut Color {
-    c.g = 1.0;
-    c
-}
-fn give_blue(c: &mut Color) -> &mut Color {
-    c.b = 1.0;
-    c
+fn give_red(c: Color) -> Color {
+    Color {
+        r: 255,
+        g: c.g,
+        b: c.b,
+    }
 }
 
-fn take_red(c: &mut Color) -> &mut Color {
-    c.r = 0.0;
-    c
+fn give_green(c: Color) -> Color {
+    Color {
+        r: c.r,
+        g: 255,
+        b: c.b,
+    }
 }
-fn take_green(c: &mut Color) -> &mut Color {
-    c.g = 0.0;
-    c
+
+fn give_blue(c: Color) -> Color {
+    Color {
+        r: c.r,
+        g: c.g,
+        b: 255,
+    }
 }
-fn take_blue(c: &mut Color) -> &mut Color {
-    c.b = 0.0;
-    c
+
+fn take_red(c: Color) -> Color {
+    Color {
+        r: 0,
+        g: c.g,
+        b: c.b,
+    }
+}
+fn take_green(c: Color) -> Color {
+    Color {
+        r: c.r,
+        g: 0,
+        b: c.b,
+    }
+}
+fn take_blue(c: Color) -> Color {
+    Color {
+        r: c.r,
+        g: c.g,
+        b: 0,
+    }
+}
+
+fn get_random_color() -> Color {
+    Color {
+        r: if random::<bool>() { 255 } else { 0 },
+        g: if random::<bool>() { 255 } else { 0 },
+        b: if random::<bool>() { 255 } else { 0 },
+    }
+}
+
+//This function assumes an x and y between the ranges -dim().<dimension>..infinity
+fn wrap_point_to_cell_array(old_cell_array: ArrayView2<'_, Color>, x: i32, y: i32) -> (i32, i32) {
+    let width = old_cell_array.dim().0 as i32;
+    let height = old_cell_array.dim().1 as i32;
+
+    ((x + width) % width, (y + height) % height)
+}
+
+//Get the alive neighbours surrounding x,y in a moore neighbourhood
+fn get_alive_neighbours(
+    old_cell_array: ArrayView2<'_, Color>,
+    x: i32,
+    y: i32,
+) -> (i32, i32, i32, i32, i32, i32) {
+    let mut alive_red_neighbours = 0;
+    let mut alive_green_neighbours = 0;
+    let mut alive_blue_neighbours = 0;
+    let mut alive_cyan_neighbours = 0;
+    let mut alive_magenta_neighbours = 0;
+    let mut alive_yellow_neighbours = 0;
+
+    for xx in -1..2 {
+        for yy in -1..2 {
+            if !(xx == 0 && yy == 0) {
+                let offset_point = wrap_point_to_cell_array(old_cell_array, x + xx, y + yy);
+
+                let neighbour_color =
+                    old_cell_array[[offset_point.0 as usize, offset_point.1 as usize]];
+
+                if has_red(neighbour_color) {
+                    alive_red_neighbours += 1;
+
+                    if has_blue(neighbour_color) {
+                        alive_magenta_neighbours += 1;
+                    }
+                }
+                if has_green(neighbour_color) {
+                    alive_green_neighbours += 1;
+
+                    if has_red(neighbour_color) {
+                        alive_yellow_neighbours += 1;
+                    }
+                }
+                if has_blue(neighbour_color) {
+                    alive_blue_neighbours += 1;
+
+                    if has_green(neighbour_color) {
+                        alive_cyan_neighbours += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    (
+        alive_red_neighbours,
+        alive_green_neighbours,
+        alive_blue_neighbours,
+        alive_cyan_neighbours,
+        alive_magenta_neighbours,
+        alive_yellow_neighbours,
+    )
+}
+
+//Get the next state for a cell
+fn get_next_color(old_cell_array: ArrayView2<'_, Color>, x: i32, y: i32) -> Color {
+    let (alive_red_neighbours, alive_green_neighbours, alive_blue_neighbours, alive_cyan_neighbours, alive_magenta_neighbours, alive_yellow_neighbours) =
+        get_alive_neighbours(old_cell_array, x, y);
+
+    //let old_color = self.old_cell_array[[x as usize, y as usize]];
+    //let current_color = self.cell_array[[x as usize, y as usize]];
+
+    let old_color = old_cell_array[[x as usize, y as usize]];
+    let mut new_color = old_color;
+
+    //Run red sim
+    if has_red(old_color)
+    //Red cell is alive
+    {
+        if alive_red_neighbours == 2 || alive_red_neighbours == 3 {
+            new_color = give_red(new_color); //Cell survives
+        } else {
+            new_color = take_red(new_color); //Cell dies of overpopulation or starvation
+        }
+    } else {
+        if alive_red_neighbours == 3 || alive_cyan_neighbours == 3 {
+            new_color = give_red(new_color); //Cell is born
+        } else {
+            new_color = take_red(new_color); //Cell remains dead
+        }
+    }
+
+    //run green sim
+    if has_green(old_color)
+    //Green cell is alive
+    {
+        if alive_green_neighbours == 2 || alive_green_neighbours == 3
+        {
+            new_color = give_green(new_color); //Cell survives
+        } else {
+            new_color = take_green(new_color); //Cell dies of overpopulation or starvation
+        }
+    } else {
+        if alive_green_neighbours == 3 || alive_magenta_neighbours == 3 {
+            new_color = give_green(new_color); //Cell is born
+        } else {
+            new_color = take_green(new_color); //Cell remains dead
+        }
+    }
+
+    //run blue sim
+    if has_blue(old_color)
+    //Blue cell is alive
+    {
+        if alive_blue_neighbours == 2 || alive_blue_neighbours == 3 
+        {
+            new_color = give_blue(new_color); //Cell survives
+        } else {
+            new_color = take_blue(new_color); //Cell dies of overpopulation or starvation
+        }
+    } else {
+        if alive_blue_neighbours == 3 || alive_yellow_neighbours == 3 {
+            new_color = give_blue(new_color); //Cell is born
+        } else {
+            new_color = take_blue(new_color); //Cell remains dead
+        }
+    }
+
+    new_color
 }
 
 impl EventHandler for MyGame {
@@ -228,29 +304,32 @@ impl EventHandler for MyGame {
         let width = self.cell_array.dim().0 as i32;
         let height = self.cell_array.dim().1 as i32;
 
-        let mut active_cells = 0;
+        let old_cell_array_view = self.old_cell_array.view();
 
-        for x in 0..width {
-            for y in 0..height {
-                let new_color = self.get_next_color(x, y);
+        let active_cells: i32 = ndarray::Zip::indexed(&self.old_cell_array)
+            .and(&mut self.cell_array)
+            .into_par_iter()
+            .map(|((x, y), old, new)| {
+                let new_color = get_next_color(old_cell_array_view, x as i32, y as i32);
 
                 //Two checks are necessary to avoid two tic oscillators being counted as active cells
-                if new_color != self.cell_array[[x as usize, y as usize]]
-                    && new_color != self.old_cell_array[[x as usize, y as usize]]
-                {
-                    active_cells += 1;
-                }
+                let older = *new;
+                *new = new_color;
 
-                self.cell_array[[x as usize, y as usize]] = new_color;
-            }
-        }
+                if new_color != older && new_color != *old {
+                    1
+                } else {
+                    0
+                }
+            })
+            .sum();
 
         if active_cells < width + height {
             for _i in 0..random::<i32>() % width + height {
                 self.cell_array[[
                     random::<usize>() % width as usize,
                     random::<usize>() % height as usize,
-                ]] = BLACK;
+                ]] = get_random_color();
             }
         }
 
@@ -270,17 +349,15 @@ impl EventHandler for MyGame {
         let cell_height = self.bounds.h as f32 / cell_array_height as f32;
 
         for ((x, y), &color) in self.cell_array.indexed_iter() {
-            if color == BLACK {
-                graphics::draw(
-                    ctx,
-                    &self.square,
-                    DrawParam {
-                        dest: [x as f32 * cell_width, y as f32 * cell_height].into(),
-                        color,
-                        ..DrawParam::default()
-                    },
-                )?;
-            }
+            graphics::draw(
+                ctx,
+                &self.square,
+                DrawParam {
+                    dest: [x as f32 * cell_width, y as f32 * cell_height].into(),
+                    color: color.into(),
+                    ..DrawParam::default()
+                },
+            )?;
         }
 
         graphics::present(ctx)

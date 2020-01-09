@@ -8,5 +8,6 @@ edition = "2018"
 
 [dependencies]
 ggez = "*"
-ndarray = "*"
+ndarray = { version = "*", features = ["rayon"] }
 rand = "*"
+rayon = "*"
