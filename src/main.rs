@@ -15,8 +15,8 @@ fn main() {
     // Make a Context.
     let (mut ctx, mut event_loop) = ContextBuilder::new("cellular3", "CodeBunny")
         .window_mode(WindowMode {
-            width: 1280.0,
-            height: 720.0,
+            width: 1600.0,
+            height: 900.0,
             ..WindowMode::default()
         })
         .build()
@@ -51,8 +51,8 @@ impl MyGame {
         // Load/create resources such as images here.
         let (pixels_x, pixels_y) = ggez::graphics::size(ctx);
 
-        let cells_x = 128;
-        let cells_y = 72;
+        let cells_x = 256;
+        let cells_y = 144;
 
         let cell_width = pixels_x as f32 / cells_x as f32;
         let cell_height = pixels_y as f32 / cells_y as f32;
@@ -90,24 +90,137 @@ impl MyGame {
     }
 
     //TODO: Finish implementing
-    pub fn get_alive_neighbours(&self, x: i32, y: i32) -> i32 {
-        let mut alive_neighbours = 0;
+    pub fn get_alive_neighbours(&self, x: i32, y: i32) -> (i32, i32, i32) {
+        let mut alive_red_neighbours = 0;
+        let mut alive_green_neighbours = 0;
+        let mut alive_blue_neighbours = 0;
 
         for xx in -1..2 {
             for yy in -1..2 {
-                let offset_point = self.wrap_point_to_cell_array(x + xx, y + yy);
+                if !(xx == 0 && yy == 0) {
+                    let offset_point = self.wrap_point_to_cell_array(x + xx, y + yy);
 
-                if !(xx == 0 && yy == 0)
-                    && self.old_cell_array[[offset_point.0 as usize, offset_point.1 as usize]]
-                        == BLACK
-                {
-                    alive_neighbours += 1;
+                    let neighbour_color =
+                        self.old_cell_array[[offset_point.0 as usize, offset_point.1 as usize]];
+
+                    if has_red(neighbour_color) {
+                        alive_red_neighbours += 1;
+                    }
+                    if has_green(neighbour_color) {
+                        alive_green_neighbours += 1;
+                    }
+                    if has_blue(neighbour_color) {
+                        alive_blue_neighbours += 1;
+                    }
                 }
             }
         }
 
-        alive_neighbours
+        (alive_red_neighbours, alive_green_neighbours, alive_blue_neighbours)
     }
+
+    fn get_next_color(&self, x: i32, y: i32) -> Color
+    {
+        let (alive_red_neighbours, alive_blue_neighbours, alive_green_neighbours) = self.get_alive_neighbours(x, y);
+
+        let old_color = self.old_cell_array[[x as usize, y as usize]];
+        let current_color = self.cell_array[[x as usize, y as usize]];
+
+        let &mut new_color = WHITE;
+        let old_color = self.old_cell_array[[x as usize, y as usize]];
+        
+        //Run red sim
+        if has_red(old_color)//Red cell is alive
+        {
+            if alive_red_neighbours == 2 || alive_red_neighbours == 3
+            {
+                new_color = give_red(new_color);//Cell survives
+            }else{
+                new_color = take_red(new_color);//Cell dies of overpopulation or starvation
+            }
+        }else{
+            if alive_red_neighbours == 3
+            {
+                new_color = give_red(new_color);//Cell is born
+            }else{
+                new_color = take_red(new_color);//Cell remains dead
+            }
+        }
+
+        //run green sim
+        if has_green(old_color)//Green cell is alive
+        {
+            if alive_green_neighbours == 2 || alive_green_neighbours == 3
+            {
+                new_color = give_green(new_color);//Cell survives
+            }else{
+                new_color = take_green(new_color);//Cell dies of overpopulation or starvation
+            }
+        }else{
+            if alive_green_neighbours == 3
+            {
+                new_color = give_green(new_color);//Cell is born
+            }else{
+                new_color = take_green(new_color);//Cell remains dead
+            }
+        }
+
+        //run blue sim
+        if has_blue(old_color)//Blue cell is alive
+        {
+            if alive_blue_neighbours == 2 || alive_blue_neighbours == 3
+            {
+                new_color = give_blue(new_color);//Cell survives
+            }else{
+                new_color = take_blue(new_color);//Cell dies of overpopulation or starvation
+            }
+        }else{
+            if alive_blue_neighbours == 3
+            {
+                new_color = give_blue(new_color);//Cell is born
+            }else{
+                new_color = take_blue(new_color);//Cell remains dead
+            }
+        }
+
+        *new_color
+    }
+}
+
+fn has_red(c: Color) -> bool {
+    c.r == 1.0
+}
+fn has_green(c: Color) -> bool {
+    c.g == 1.0
+}
+fn has_blue(c: Color) -> bool {
+    c.b == 1.0
+}
+
+fn give_red(c: &mut Color) -> &mut Color {
+    c.r = 1.0;
+    c
+}
+fn give_green(c: &mut Color) -> &mut Color {
+    c.g = 1.0;
+    c
+}
+fn give_blue(c: &mut Color) -> &mut Color {
+    c.b = 1.0;
+    c
+}
+
+fn take_red(c: &mut Color) -> &mut Color {
+    c.r = 0.0;
+    c
+}
+fn take_green(c: &mut Color) -> &mut Color {
+    c.g = 0.0;
+    c
+}
+fn take_blue(c: &mut Color) -> &mut Color {
+    c.b = 0.0;
+    c
 }
 
 impl EventHandler for MyGame {
@@ -119,36 +232,20 @@ impl EventHandler for MyGame {
 
         for x in 0..width {
             for y in 0..height {
-                let alive_neighbours = self.get_alive_neighbours(x as i32, y as i32);
+                let new_color = self.get_next_color(x, y);
 
-                self.cell_array[[x as usize, y as usize]] =
-                    if self.old_cell_array[[x as usize, y as usize]] == BLACK {
-                        //The cell is alive
-                        if alive_neighbours == 2 || alive_neighbours == 3 {
-                            BLACK //A cell survives
-                        } else {
-                            WHITE //A cell dies of starvation or overpopulation
-                        }
-                    } else {
-                        //The cell is dead
-                        if alive_neighbours == 3 {
-                            BLACK //The cell is born through reproduction
-                        } else {
-                            WHITE //The cell remains dead
-                        }
-                    };
-
-                if self.cell_array[[x as usize, y as usize]]
-                    != self.old_cell_array[[x as usize, y as usize]]
+                //Two checks are necessary to avoid two tic oscillators being counted as active cells
+                if new_color != self.cell_array[[x as usize, y as usize]]
+                    && new_color != self.old_cell_array[[x as usize, y as usize]]
                 {
                     active_cells += 1;
                 }
+
+                self.cell_array[[x as usize, y as usize]] = new_color;
             }
         }
 
-        std::mem::swap(&mut self.cell_array, &mut self.old_cell_array);
-
-        if active_cells < (width + height) / 2 {
+        if active_cells < width + height {
             for _i in 0..random::<i32>() % width + height {
                 self.cell_array[[
                     random::<usize>() % width as usize,
@@ -157,6 +254,7 @@ impl EventHandler for MyGame {
             }
         }
 
+        std::mem::swap(&mut self.cell_array, &mut self.old_cell_array);
         self.current_tic += 1;
 
         Ok(())
