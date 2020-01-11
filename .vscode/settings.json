@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
+        "batch",
         "ggez",
         "lerp",
         "lerped",
@@ -8,6 +9,7 @@
         "neighbour",
         "neighbourhood",
         "neighbours",
+        "sprite",
         "value"
     ]
 }

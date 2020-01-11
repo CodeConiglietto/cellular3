@@ -1,7 +1,9 @@
 use ggez::{
     conf::WindowMode,
     event::{self, EventHandler},
-    graphics::{self, Color as GGColor, DrawMode, DrawParam, Mesh, Rect},
+    graphics::{
+        self, spritebatch::SpriteBatch, Color as GGColor, DrawMode, DrawParam, Image, Mesh, Rect,
+    },
     timer, Context, ContextBuilder, GameResult,
 };
 use ndarray::{s, Array2, ArrayView2};
@@ -10,14 +12,14 @@ use rayon::prelude::*;
 
 const MAX_NEIGHBOURS: usize = 9;
 const MAX_COLORS: usize = 8;
-const TICS_PER_UPDATE: i32 = 4;
+const TICS_PER_UPDATE: i32 = 16;
 
 fn main() {
     // Make a Context.
     let (mut ctx, mut event_loop) = ContextBuilder::new("cellular3", "CodeBunny")
         .window_mode(WindowMode {
-            width: 640.0,
-            height: 640.0,
+            width: 1600.0,
+            height: 900.0,
             ..WindowMode::default()
         })
         .build()
@@ -191,19 +193,6 @@ impl PalletteColor {
     }
 }
 
-struct MyGame {
-    //Cell mesh to reuse
-    square: Mesh,
-    //Screen bounds
-    bounds: Rect,
-    //The actual cell array
-    old_cell_array: Array2<PalletteColor>,
-    cell_array: Array2<PalletteColor>,
-    new_cell_array: Array2<PalletteColor>,
-
-    rule_sets: [RuleSet; MAX_COLORS],
-}
-
 #[derive(Clone, Copy)]
 struct Rule {
     life_neighbours: [bool; MAX_NEIGHBOURS], //How many neighbours we need to be born
@@ -259,26 +248,30 @@ fn mutate_rule_set(rule_set: &mut RuleSet) {
         [random::<usize>() % MAX_NEIGHBOURS] = random::<bool>();
 }
 
+struct MyGame {
+    //Game draw texture
+    image: Image,
+    //Screen bounds
+    bounds: Rect,
+    //The actual cell array
+    old_cell_array: Array2<PalletteColor>,
+    cell_array: Array2<PalletteColor>,
+    new_cell_array: Array2<PalletteColor>,
+
+    rule_sets: [RuleSet; MAX_COLORS],
+}
+
 impl MyGame {
     pub fn new(ctx: &mut Context) -> MyGame {
         // Load/create resources such as images here.
         let (pixels_x, pixels_y) = ggez::graphics::size(ctx);
 
-        let cells_x = 128;
-        let cells_y = 128;
-
-        let cell_width = pixels_x as f32 / cells_x as f32;
-        let cell_height = pixels_y as f32 / cells_y as f32;
+        let cells_x = 256;
+        let cells_y = 144;
 
         MyGame {
             // ...
-            square: Mesh::new_rectangle(
-                ctx,
-                DrawMode::fill(),
-                Rect::new(0.0, 0.0, cell_width, cell_height),
-                WHITE.into(),
-            )
-            .unwrap(),
+            image: Image::solid(ctx, 1, WHITE.into()).unwrap(),
 
             bounds: Rect::new(0.0, 0.0, pixels_x, pixels_y),
 
@@ -429,12 +422,12 @@ impl EventHandler for MyGame {
             })
             .sum();
 
-        if timer::ticks(ctx) as i32 % TICS_PER_UPDATE == 0 {
-            let total_cells = width * height;
-            let diagonal_size = width + height;
+        let total_cells = width * height;
+        let diagonal_size = width + height;
 
+        if timer::ticks(ctx) as i32 % TICS_PER_UPDATE == 0 {
             if active_cells < random::<i32>() % (total_cells / 16) {
-                for _i in 0..random::<i32>() % ((active_cells + width + height) / 4) {
+                for _i in 0..random::<i32>() % diagonal_size * ((active_cells/ 4) + 1) {
                     self.cell_array[[
                         random::<usize>() % width as usize,
                         random::<usize>() % height as usize,
@@ -442,13 +435,7 @@ impl EventHandler for MyGame {
                 }
             }
 
-            if true
-                || thread_rng().gen_range(0, (active_cells / diagonal_size) + 1) == 0
-                || active_cells > total_cells / 3
-            {
-                //dbg!("Mutating rule set");
-                mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);
-            }
+            mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);
 
             //Rotate the three buffers by swapping
             std::mem::swap(&mut self.cell_array, &mut self.old_cell_array);
@@ -462,6 +449,7 @@ impl EventHandler for MyGame {
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx, graphics::WHITE);
+        let mut sprite_batch = SpriteBatch::new(self.image.clone());
 
         let cell_array_width = self.cell_array.dim().0;
         let cell_array_height = self.cell_array.dim().1;
@@ -469,7 +457,8 @@ impl EventHandler for MyGame {
         let cell_width = self.bounds.w as f32 / cell_array_width as f32;
         let cell_height = self.bounds.h as f32 / cell_array_height as f32;
 
-        let lerp_value = (timer::ticks(ctx) as i32 % TICS_PER_UPDATE) as f32 / TICS_PER_UPDATE as f32;
+        let lerp_value =
+            (timer::ticks(ctx) as i32 % TICS_PER_UPDATE) as f32 / TICS_PER_UPDATE as f32;
 
         for x in 0..cell_array_width {
             for y in 0..cell_array_height {
@@ -482,17 +471,16 @@ impl EventHandler for MyGame {
                     lerp_value,
                 );
 
-                graphics::draw(
-                    ctx,
-                    &self.square,
-                    DrawParam {
-                        dest: [x as f32 * cell_width, y as f32 * cell_height].into(),
-                        color: lerped_color,
-                        ..DrawParam::default()
-                    },
-                )?;
+                sprite_batch.add(DrawParam {
+                    dest: [x as f32 * cell_width, y as f32 * cell_height].into(),
+                    scale: [cell_width, cell_height].into(),
+                    color: lerped_color,
+                    ..DrawParam::default()
+                });
             }
         }
+
+        ggez::graphics::draw(ctx, &sprite_batch, DrawParam::default())?;
 
         graphics::present(ctx)
     }
