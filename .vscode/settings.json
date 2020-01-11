@@ -1,9 +1,13 @@
 {
     "cSpell.words": [
         "ggez",
+        "lerp",
+        "lerped",
+        "lerping",
         "ndarray",
         "neighbour",
         "neighbourhood",
-        "neighbours"
+        "neighbours",
+        "value"
     ]
 }

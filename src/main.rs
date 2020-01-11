@@ -1,17 +1,16 @@
-use ggez::conf::WindowMode;
-use ggez::event::{self, EventHandler};
-use ggez::graphics::Color as GGColor;
-use ggez::graphics::DrawMode;
-use ggez::graphics::DrawParam;
-use ggez::graphics::Mesh;
-use ggez::graphics::Rect;
-use ggez::{graphics, Context, ContextBuilder, GameResult};
-use ndarray::{Array2, ArrayView2};
+use ggez::{
+    conf::WindowMode,
+    event::{self, EventHandler},
+    graphics::{self, Color as GGColor, DrawMode, DrawParam, Mesh, Rect},
+    timer, Context, ContextBuilder, GameResult,
+};
+use ndarray::{s, Array2, ArrayView2};
 use rand::prelude::*;
 use rayon::prelude::*;
 
 const MAX_NEIGHBOURS: usize = 9;
 const MAX_COLORS: usize = 8;
+const TICS_PER_UPDATE: i32 = 4;
 
 fn main() {
     // Make a Context.
@@ -60,7 +59,7 @@ impl From<Color> for GGColor {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum PalletteColor {
     Black,
     Red,
@@ -195,16 +194,14 @@ impl PalletteColor {
 struct MyGame {
     //Cell mesh to reuse
     square: Mesh,
-    //Tic timer
-    current_tic: i32,
     //Screen bounds
     bounds: Rect,
     //The actual cell array
-    cell_array: Array2<PalletteColor>,
     old_cell_array: Array2<PalletteColor>,
+    cell_array: Array2<PalletteColor>,
+    new_cell_array: Array2<PalletteColor>,
 
     rule_sets: [RuleSet; MAX_COLORS],
-    stagnation: i32,
 }
 
 #[derive(Clone, Copy)]
@@ -267,8 +264,8 @@ impl MyGame {
         // Load/create resources such as images here.
         let (pixels_x, pixels_y) = ggez::graphics::size(ctx);
 
-        let cells_x = 56;
-        let cells_y = 56;
+        let cells_x = 128;
+        let cells_y = 128;
 
         let cell_width = pixels_x as f32 / cells_x as f32;
         let cell_height = pixels_y as f32 / cells_y as f32;
@@ -283,13 +280,16 @@ impl MyGame {
             )
             .unwrap(),
 
-            current_tic: 0,
-
             bounds: Rect::new(0.0, 0.0, pixels_x, pixels_y),
+
+            old_cell_array: Array2::from_shape_fn(
+                (cells_x, cells_y),
+                |(_x, _y)| -> PalletteColor { get_random_color() },
+            ),
             cell_array: Array2::from_shape_fn((cells_x, cells_y), |(_x, _y)| -> PalletteColor {
                 get_random_color()
             }),
-            old_cell_array: Array2::from_shape_fn(
+            new_cell_array: Array2::from_shape_fn(
                 (cells_x, cells_y),
                 |(_x, _y)| -> PalletteColor { get_random_color() },
             ),
@@ -304,8 +304,6 @@ impl MyGame {
                 generate_random_rule_set(),
                 generate_random_rule_set(),
             ],
-
-            stagnation: 0,
         }
     }
 }
@@ -334,8 +332,8 @@ fn get_alive_neighbours(
 ) -> [usize; MAX_COLORS] {
     let mut alive_neighbours = [0 as usize; MAX_COLORS]; //An array containing neighbour information for each color
 
-    for xx in -1..2 {
-        for yy in -1..2 {
+    for xx in -1..=1 {
+        for yy in -1..=1 {
             if !(xx == 0 && yy == 0) {
                 let offset_point = wrap_point_to_cell_array(old_cell_array, x + xx, y + yy);
 
@@ -384,26 +382,46 @@ fn get_next_color(
     new_color
 }
 
+//Simple color lerp - May be able to find a better one here: https://www.alanzucconi.com/2016/01/06/colour-interpolation/
+fn lerp_ggez_color(a: GGColor, b: GGColor, value: f32) -> GGColor {
+    GGColor {
+        r: a.r + (b.r - a.r) * value,
+        g: a.g + (b.g - a.g) * value,
+        b: a.b + (b.b - a.b) * value,
+        a: 1.0, //We don't care about transparency lerping
+    }
+}
+
 impl EventHandler for MyGame {
-    fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
+    fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         let width = self.cell_array.dim().0 as i32;
         let height = self.cell_array.dim().1 as i32;
 
-        let old_cell_array_view = self.old_cell_array.view();
+        let slice_height = height / TICS_PER_UPDATE;
+        let slice_y = (timer::ticks(ctx) as i32 % TICS_PER_UPDATE) * slice_height;
+
+        let slice_information = s![0..width, slice_y..slice_y + slice_height];
+
+        //dbg!(slice_information);
+
+        let current_update_slice = self.cell_array.slice(slice_information);
+        let new_update_slice = self.new_cell_array.slice_mut(slice_information);
 
         let rule_sets = self.rule_sets;
+        let cell_array_view = self.cell_array.view();
 
-        let active_cells: i32 = ndarray::Zip::indexed(&self.old_cell_array)
-            .and(&mut self.cell_array)
+        let active_cells: i32 = ndarray::Zip::indexed(current_update_slice)
+            .and(new_update_slice)
             .into_par_iter()
-            .map(|((x, y), old, new)| {
-                let new_color = get_next_color(old_cell_array_view, rule_sets, x as i32, y as i32);
+            .map(|((x, y), current, new)| {
+                let new_color =
+                    get_next_color(cell_array_view, rule_sets, x as i32, y as i32 + slice_y);
 
-                //Two checks are necessary to avoid two tic oscillators being counted as active cells
                 let older = *new;
                 *new = new_color;
 
-                if new_color != older && new_color != *old {
+                //Two checks are necessary to avoid two tic oscillators being counted as active cells
+                if new_color != older && new_color != *current {
                     1
                 } else {
                     0
@@ -411,28 +429,33 @@ impl EventHandler for MyGame {
             })
             .sum();
 
-        let total_cells = width * height;
-        let diagonal_size = width + height;
+        if timer::ticks(ctx) as i32 % TICS_PER_UPDATE == 0 {
+            let total_cells = width * height;
+            let diagonal_size = width + height;
 
-        if active_cells < random::<i32>() % (total_cells / 8) {
-            for _i in 0..random::<i32>() % ((active_cells + width + height) / 4) {
-                self.cell_array[[
-                    random::<usize>() % width as usize,
-                    random::<usize>() % height as usize,
-                ]] = get_random_color();
+            if active_cells < random::<i32>() % (total_cells / 16) {
+                for _i in 0..random::<i32>() % ((active_cells + width + height) / 4) {
+                    self.cell_array[[
+                        random::<usize>() % width as usize,
+                        random::<usize>() % height as usize,
+                    ]] = get_random_color();
+                }
             }
+
+            if true
+                || thread_rng().gen_range(0, (active_cells / diagonal_size) + 1) == 0
+                || active_cells > total_cells / 3
+            {
+                //dbg!("Mutating rule set");
+                mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);
+            }
+
+            //Rotate the three buffers by swapping
+            std::mem::swap(&mut self.cell_array, &mut self.old_cell_array);
+            std::mem::swap(&mut self.cell_array, &mut self.new_cell_array);
         }
 
-        if true || thread_rng().gen_range(0, (active_cells / diagonal_size) + 1) == 0
-            || active_cells > total_cells / 3
-        {
-            dbg!("Mutating rule set");
-            mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);
-        }
-
-        std::mem::swap(&mut self.cell_array, &mut self.old_cell_array);
-        self.current_tic += 1;
-        //dbg!(self.current_tic);
+        timer::yield_now();
 
         Ok(())
     }
@@ -446,16 +469,29 @@ impl EventHandler for MyGame {
         let cell_width = self.bounds.w as f32 / cell_array_width as f32;
         let cell_height = self.bounds.h as f32 / cell_array_height as f32;
 
-        for ((x, y), &color) in self.cell_array.indexed_iter() {
-            graphics::draw(
-                ctx,
-                &self.square,
-                DrawParam {
-                    dest: [x as f32 * cell_width, y as f32 * cell_height].into(),
-                    color: color.get_color().into(),
-                    ..DrawParam::default()
-                },
-            )?;
+        let lerp_value = (timer::ticks(ctx) as i32 % TICS_PER_UPDATE) as f32 / TICS_PER_UPDATE as f32;
+
+        for x in 0..cell_array_width {
+            for y in 0..cell_array_height {
+                let old = &self.old_cell_array[[x, y]];
+                let current = &self.cell_array[[x, y]];
+
+                let lerped_color = lerp_ggez_color(
+                    old.get_color().into(),
+                    current.get_color().into(),
+                    lerp_value,
+                );
+
+                graphics::draw(
+                    ctx,
+                    &self.square,
+                    DrawParam {
+                        dest: [x as f32 * cell_width, y as f32 * cell_height].into(),
+                        color: lerped_color,
+                        ..DrawParam::default()
+                    },
+                )?;
+            }
         }
 
         graphics::present(ctx)
