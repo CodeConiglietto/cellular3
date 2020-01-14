@@ -10,6 +10,7 @@
         "neighbourhood",
         "neighbours",
         "sprite",
+        "spritebatch",
         "value"
     ]
 }

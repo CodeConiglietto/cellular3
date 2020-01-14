@@ -1,18 +1,21 @@
 use ggez::{
     conf::WindowMode,
     event::{self, EventHandler},
-    graphics::{
-        self, spritebatch::SpriteBatch, Color as GGColor, DrawMode, DrawParam, Image, Mesh, Rect,
-    },
+    graphics::{self, spritebatch::SpriteBatch, Color as GGColor, DrawParam, Image, Rect},
     timer, Context, ContextBuilder, GameResult,
 };
 use ndarray::{s, Array2, ArrayView2};
 use rand::prelude::*;
 use rayon::prelude::*;
+use std::{
+    iter::Sum,
+    ops::{Add, AddAssign, Div},
+};
 
-const MAX_NEIGHBOURS: usize = 9;
+const MAX_NEIGHBOUR_ARRAY_COUNT: usize = 9;//Use this for array indexes as it counts zero
+const MAX_NEIGHBOUR_COUNT: i32 = 8;//Use this for total neighbours excluding zero
 const MAX_COLORS: usize = 8;
-const TICS_PER_UPDATE: i32 = 16;
+const TICS_PER_UPDATE: i32 = 12;
 
 fn main() {
     // Make a Context.
@@ -195,8 +198,8 @@ impl PalletteColor {
 
 #[derive(Clone, Copy)]
 struct Rule {
-    life_neighbours: [bool; MAX_NEIGHBOURS], //How many neighbours we need to be born
-    death_neighbours: [bool; MAX_NEIGHBOURS], //How many neighbours we need to be killed
+    life_neighbours: [bool; MAX_NEIGHBOUR_ARRAY_COUNT], //How many neighbours we need to be born
+    death_neighbours: [bool; MAX_NEIGHBOUR_ARRAY_COUNT], //How many neighbours we need to be killed
 }
 
 //One of these per colour
@@ -205,7 +208,7 @@ struct RuleSet {
     rules: [Rule; MAX_COLORS],
 }
 
-fn generate_random_neighbour_list() -> [bool; MAX_NEIGHBOURS] {
+fn generate_random_neighbour_list() -> [bool; MAX_NEIGHBOUR_ARRAY_COUNT] {
     [
         random::<bool>(),
         random::<bool>(),
@@ -243,9 +246,9 @@ fn generate_random_rule_set() -> RuleSet {
 
 fn mutate_rule_set(rule_set: &mut RuleSet) {
     rule_set.rules[random::<usize>() % MAX_COLORS].life_neighbours
-        [random::<usize>() % MAX_NEIGHBOURS] = random::<bool>();
+        [random::<usize>() % MAX_NEIGHBOUR_ARRAY_COUNT] = random::<bool>();
     rule_set.rules[random::<usize>() % MAX_COLORS].death_neighbours
-        [random::<usize>() % MAX_NEIGHBOURS] = random::<bool>();
+        [random::<usize>() % MAX_NEIGHBOUR_ARRAY_COUNT] = random::<bool>();
 }
 
 struct MyGame {
@@ -259,6 +262,11 @@ struct MyGame {
     new_cell_array: Array2<PalletteColor>,
 
     rule_sets: [RuleSet; MAX_COLORS],
+
+    //The rolling total used to calculate the average per update instead of per slice
+    rolling_update_stat_total: UpdateStat,
+    //The average update stat over time, calculated by averaging rolling total and itself once an update
+    average_update_stat: UpdateStat,
 }
 
 impl MyGame {
@@ -266,8 +274,8 @@ impl MyGame {
         // Load/create resources such as images here.
         let (pixels_x, pixels_y) = ggez::graphics::size(ctx);
 
-        let cells_x = 256;
-        let cells_y = 144;
+        let cells_x = 426;
+        let cells_y = 240;
 
         MyGame {
             // ...
@@ -297,6 +305,15 @@ impl MyGame {
                 generate_random_rule_set(),
                 generate_random_rule_set(),
             ],
+
+            rolling_update_stat_total: UpdateStat {
+                active_cells: 0,
+                similar_neighbours: 0,
+            },
+            average_update_stat: UpdateStat {
+                active_cells: 0,
+                similar_neighbours: 0,
+            },
         }
     }
 }
@@ -322,8 +339,9 @@ fn get_alive_neighbours(
     old_cell_array: ArrayView2<'_, PalletteColor>,
     x: i32,
     y: i32,
-) -> [usize; MAX_COLORS] {
+) -> ([usize; MAX_COLORS], i32) {
     let mut alive_neighbours = [0 as usize; MAX_COLORS]; //An array containing neighbour information for each color
+    let similar_neighbours = 0;
 
     for xx in -1..=1 {
         for yy in -1..=1 {
@@ -338,19 +356,15 @@ fn get_alive_neighbours(
         }
     }
 
-    alive_neighbours
+    (alive_neighbours, similar_neighbours)
 }
 
 //Get the next state for a cell
 fn get_next_color(
-    old_cell_array: ArrayView2<'_, PalletteColor>,
     rule_sets: [RuleSet; MAX_COLORS],
-    x: i32,
-    y: i32,
+    old_color: PalletteColor,
+    alive_neighbours: [usize; MAX_COLORS],
 ) -> PalletteColor {
-    let alive_neighbours = get_alive_neighbours(old_cell_array, x, y);
-
-    let old_color = old_cell_array[[x as usize, y as usize]];
     let mut new_color = old_color;
 
     for i in 0..MAX_COLORS {
@@ -385,6 +399,57 @@ fn lerp_ggez_color(a: GGColor, b: GGColor, value: f32) -> GGColor {
     }
 }
 
+#[derive(Default, Clone, Copy)]
+struct UpdateStat {
+    //Update stats are used to determine an approximation of the entropy of the current state
+    //Update stats contain two values:
+    //-Active cell count
+    //--If the active cell count is high, we have a lot of change
+    //--If the active cell count is low, we have a small amount of change
+    //-Neighbour similarity
+    //--If all neighbours are similar, we have close to a flat color
+    //--If all neighbours are distinct, we have visual noise
+    active_cells: i32,
+    similar_neighbours: i32,
+}
+
+impl Add<UpdateStat> for UpdateStat {
+    type Output = UpdateStat;
+
+    fn add(self, other: UpdateStat) -> UpdateStat {
+        UpdateStat {
+            active_cells: self.active_cells + other.active_cells,
+            similar_neighbours: self.similar_neighbours + other.similar_neighbours,
+        }
+    }
+}
+
+impl Div<i32> for UpdateStat {
+    type Output = UpdateStat;
+
+    fn div(self, other: i32) -> UpdateStat {
+        UpdateStat {
+            active_cells: self.active_cells / other,
+            similar_neighbours: self.similar_neighbours / other,
+        }
+    }
+}
+
+impl Sum for UpdateStat {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = Self>,
+    {
+        iter.fold(UpdateStat::default(), |a, b| a + b)
+    }
+}
+
+impl AddAssign<UpdateStat> for UpdateStat {
+    fn add_assign(&mut self, other: UpdateStat) {
+        *self = *self + other;
+    }
+}
+
 impl EventHandler for MyGame {
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         let width = self.cell_array.dim().0 as i32;
@@ -395,47 +460,72 @@ impl EventHandler for MyGame {
 
         let slice_information = s![0..width, slice_y..slice_y + slice_height];
 
-        //dbg!(slice_information);
-
         let current_update_slice = self.cell_array.slice(slice_information);
         let new_update_slice = self.new_cell_array.slice_mut(slice_information);
 
         let rule_sets = self.rule_sets;
         let cell_array_view = self.cell_array.view();
 
-        let active_cells: i32 = ndarray::Zip::indexed(current_update_slice)
+        let slice_update_stat: UpdateStat = ndarray::Zip::indexed(current_update_slice)
             .and(new_update_slice)
             .into_par_iter()
             .map(|((x, y), current, new)| {
-                let new_color =
-                    get_next_color(cell_array_view, rule_sets, x as i32, y as i32 + slice_y);
+                let neighbour_result = get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
 
-                let older = *new;
+                let new_color = get_next_color(rule_sets, *current, neighbour_result.0);
+
+                let older_color = *new;
                 *new = new_color;
 
-                //Two checks are necessary to avoid two tic oscillators being counted as active cells
-                if new_color != older && new_color != *current {
-                    1
-                } else {
-                    0
+                UpdateStat {
+                    //Two checks are necessary to avoid two tic oscillators being counted as active cells
+                    active_cells: if new_color != older_color && new_color != *current {
+                        1
+                    } else {
+                        0
+                    },
+                    similar_neighbours: neighbour_result.1,
                 }
             })
             .sum();
 
+        self.rolling_update_stat_total += slice_update_stat;
+
         let total_cells = width * height;
-        let diagonal_size = width + height;
 
         if timer::ticks(ctx) as i32 % TICS_PER_UPDATE == 0 {
-            if active_cells < random::<i32>() % (total_cells / 16) {
-                for _i in 0..random::<i32>() % diagonal_size * ((active_cells/ 4) + 1) {
-                    self.cell_array[[
+            self.average_update_stat =
+                (self.average_update_stat + self.rolling_update_stat_total) / 2;
+
+            let sqrt_stagnant_cells =
+                ((total_cells - slice_update_stat.active_cells) as f32).sqrt() as i32;
+
+            let activity_value = self.average_update_stat.active_cells as f32 / total_cells as f32;
+            let similarity_value = self.average_update_stat.similar_neighbours as f32 / (total_cells * MAX_NEIGHBOUR_COUNT) as f32;
+
+            let similarity_value_squared = similarity_value * similarity_value;
+            let activity_value_squared = activity_value * activity_value;
+
+            if random::<i32>() % (sqrt_stagnant_cells / 2 + 1) > slice_update_stat.active_cells {
+                for _i in 0..random::<i32>() % (sqrt_stagnant_cells + 1) {
+                    self.new_cell_array[[
                         random::<usize>() % width as usize,
                         random::<usize>() % height as usize,
                     ]] = get_random_color();
                 }
             }
 
-            mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);
+            if similarity_value < random::<f32>() //It's noisy
+            || similarity_value_squared > random::<f32>() //It's flat
+            || activity_value > random::<f32>() //It's turbulent
+            || activity_value_squared < random::<f32>() //It's unchanging
+            {
+                let mutations = (sqrt_stagnant_cells as f32 * 0.1) as i32 + 1;
+
+                for _i in 0..random::<i32>() % mutations {
+                    mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);
+                }
+            }
 
             //Rotate the three buffers by swapping
             std::mem::swap(&mut self.cell_array, &mut self.old_cell_array);
