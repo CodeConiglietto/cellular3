@@ -15,13 +15,13 @@ use std::{
 const MAX_NEIGHBOUR_ARRAY_COUNT: usize = 9; //Use this for array indexes as it counts zero
 const MAX_NEIGHBOUR_COUNT: i32 = 8; //Use this for total neighbours excluding zero
 const MAX_COLORS: usize = 8;
-const TICS_PER_UPDATE: i32 = 10;
+const TICS_PER_UPDATE: i32 = 27;
 
-const INITIAL_WINDOW_WIDTH: f32 = 1600.0;
-const INITIAL_WINDOW_HEIGHT: f32 = 900.0;
+const INITIAL_WINDOW_WIDTH: f32 = 1080.0;
+const INITIAL_WINDOW_HEIGHT: f32 = 1080.0;
 
-const CELL_ARRAY_WIDTH: usize = 320;
-const CELL_ARRAY_HEIGHT: usize = 180;
+const CELL_ARRAY_WIDTH: usize = 270;
+const CELL_ARRAY_HEIGHT: usize = 270;
 
 fn main() {
     // Make a Context.
@@ -203,7 +203,7 @@ impl PalletteColor {
 }
 
 trait Reseed {
-    fn reseed(&self, cell_array: &mut Array2<PalletteColor>){
+    fn reseed(&self, cell_array: &mut Array2<PalletteColor>) {
         let cell_array_width = cell_array.dim().0;
         let cell_array_height = cell_array.dim().1;
 
@@ -219,45 +219,57 @@ trait Reseed {
 }
 
 enum Reseeder {
-    Modulus { x_mod: usize, y_mod: usize, truth_table: Array2<bool> },
+    Modulus {
+        x_mod: usize,
+        y_mod: usize,
+        color_table: Array2<PalletteColor>,
+    },
 }
 
 impl Reseed for Reseeder {
     fn reseed_cell(&self, x: usize, y: usize) -> PalletteColor {
         match self {
-            Reseeder::Modulus{x_mod, y_mod, truth_table} => {
+            Reseeder::Modulus {
+                x_mod,
+                y_mod,
+                color_table,
+            } => {
                 let x_index = if x % x_mod == 0 { 1 } else { 0 };
                 let y_index = if y % y_mod == 0 { 1 } else { 0 };
 
-                if truth_table[[x_index, y_index]] 
-                { 
-                    PalletteColor::White 
-                } else { 
-                    PalletteColor::Black 
-                }
-            },
+                color_table[[x_index, y_index]]
+            }
         }
     }
 
-    fn mutate(&mut self)
-    {
+    fn mutate(&mut self) {
         match self {
-            Reseeder::Modulus{x_mod, y_mod, truth_table} => {
+            Reseeder::Modulus {
+                x_mod,
+                y_mod,
+                color_table,
+            } => {
                 let min_cell_array_dim = CELL_ARRAY_WIDTH.min(CELL_ARRAY_HEIGHT);
 
-                if random::<bool>()
-                {
+                if random::<bool>() {
                     *x_mod = (random::<usize>() % min_cell_array_dim) + 1;
                 }
 
-                if random::<bool>()
-                {
+                if random::<bool>() {
+                    *x_mod = ((*x_mod + 1) % min_cell_array_dim) + 1;
+                }
+
+                if random::<bool>() {
                     *y_mod = (random::<usize>() % min_cell_array_dim) + 1;
                 }
 
-                if random::<bool>()
-                {
-                    truth_table[[random::<usize>() % 2, random::<usize>() % 2]] = random::<bool>();
+                if random::<bool>() {
+                    *y_mod = ((*y_mod + 1) % min_cell_array_dim) + 1;
+                }
+
+                if random::<bool>() {
+                    color_table[[random::<usize>() % 2, random::<usize>() % 2]] =
+                        get_random_color();
                 }
             }
         }
@@ -386,13 +398,11 @@ impl MyGame {
                 similar_neighbours: 0,
             },
 
-            reseeder: Reseeder::Modulus{
-                x_mod: 4, 
-                y_mod: 4, 
-                truth_table: Array2::from_shape_fn(
-                    (2, 2), 
-                    |_| random::<bool>()
-            ),},
+            reseeder: Reseeder::Modulus {
+                x_mod: 4,
+                y_mod: 4,
+                color_table: Array2::from_shape_fn((2, 2), |_| get_random_color()),
+            },
         }
     }
 }
@@ -434,8 +444,7 @@ fn get_alive_neighbours(
 
                 alive_neighbours[neighbour_color.to_index()] += 1;
 
-                if neighbour_color == this_color
-                {
+                if neighbour_color == this_color {
                     similar_neighbours += 1;
                 }
             }
@@ -594,11 +603,13 @@ impl EventHandler for MyGame {
             let similarity_value_squared = similarity_value * similarity_value;
             let activity_value_squared = activity_value * activity_value;
 
-            if activity_value < 0.01 || similarity_value > 0.99 {
-            //if random::<i32>() % (sqrt_stagnant_cells / 2 + 1) > slice_update_stat.active_cells {
+            if activity_value < 0.001 || similarity_value > 0.999 {
+                //if random::<i32>() % (sqrt_stagnant_cells / 2 + 1) > slice_update_stat.active_cells {
                 &self.reseeder.reseed(&mut self.new_cell_array);
                 &self.reseeder.mutate();
-                
+
+                mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);
+
                 // for _i in 0..random::<i32>() % (sqrt_stagnant_cells + 1) {
                 //     self.new_cell_array[[
                 //         random::<usize>() % width as usize,
