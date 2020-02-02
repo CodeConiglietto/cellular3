@@ -1,9 +1,8 @@
-use crate::colors::{PalletteColor, WHITE};
-use crate::constants::*;
-use crate::nodes::PalletteColorNodes;
-use crate::pipeline::Pipeline;
-use crate::reseeders::{Reseed, Reseeder};
-use crate::rules::{generate_random_rule_set, mutate_rule_set, RuleSet};
+use std::{
+    iter::Sum,
+    ops::{Add, AddAssign, Div},
+};
+
 use ggez::{
     conf::WindowMode,
     event::{self, EventHandler},
@@ -11,16 +10,22 @@ use ggez::{
     timer, Context, ContextBuilder, GameResult,
 };
 use ndarray::{s, Array2, ArrayView2};
+use noise::{OpenSimplex, Worley};
 use rand::prelude::*;
 use rayon::prelude::*;
-use std::{
-    iter::Sum,
-    ops::{Add, AddAssign, Div},
+
+use crate::{
+    colors::{PalletteColor, WHITE},
+    constants::*,
+    nodes::PalletteColorNodes,
+    pipeline::Pipeline,
+    reseeders::{Reseed, Reseeder},
+    rules::{generate_random_rule_set, mutate_rule_set, RuleSet},
 };
-use noise::{ OpenSimplex, Worley };
 
 mod colors;
 mod constants;
+mod datatypes;
 mod nodes;
 mod pipeline;
 mod reseeders;
@@ -135,7 +140,10 @@ impl MyGame {
                     // x_offset: random::<usize>() % CELL_ARRAY_WIDTH,
                     // y_offset: random::<usize>() % CELL_ARRAY_HEIGHT,
                     // color_table: Array2::from_shape_fn((2, 2), |_| get_random_color()),
-                    PalletteColorNodes::ComboNoise{n1: OpenSimplex::new(), n2: Worley::new()}
+                    PalletteColorNodes::ComboNoise {
+                        n1: OpenSimplex::new(),
+                        n2: Worley::new(),
+                    },
                 ),
             },
 
@@ -308,7 +316,10 @@ impl EventHandler for MyGame {
                 let neighbour_result =
                     get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
 
-                let new_color = pipeline.root_node.compute(x, y + slice_y as  usize, current_sync_tic as f64); //get_next_color(rule_sets, *current, neighbour_result.0);
+                let new_color =
+                    pipeline
+                        .root_node
+                        .compute(x, y + slice_y as usize, current_sync_tic as f64); //get_next_color(rule_sets, *current, neighbour_result.0);
 
                 let older_color = *new;
                 *new = new_color;

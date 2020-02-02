@@ -1,7 +1,11 @@
-use crate::colors::*;
-use crate::constants::*;
+use crate::{
+    colors::*,
+    constants::*,
+    datatypes::{Angle, SignedFloatNormalised, UnsignedFloatNormalised},
+};
 use ndarray::prelude::*;
-use noise::{NoiseFn, OpenSimplex, Worley, RangeFunction};
+use noise::{NoiseFn, OpenSimplex, RangeFunction, Worley};
+use rand::prelude::*;
 
 pub trait Node {
     type Output;
@@ -18,18 +22,25 @@ pub enum PalletteColorNodes {
         y_offset: usize,
         color_table: Array2<PalletteColor>,
     },
-    SimplexNoise {noise: OpenSimplex},
-    Worley {noise: Worley},
-    ComboNoise {n1: OpenSimplex, n2: Worley},
+    SimplexNoise {
+        noise: OpenSimplex,
+    },
+    Worley {
+        noise: Worley,
+    },
+    ComboNoise {
+        n1: OpenSimplex,
+        n2: Worley,
+    },
     // DecomposeToComponents{
-    //     //r: 
+    //     //r:
     // }
 }
 
 impl Node for PalletteColorNodes {
     type Output = PalletteColor;
 
-    fn compute(&self, x: usize, y: usize, t: f64) -> PalletteColor {
+    fn compute(&self, x: usize, y: usize, t: f64) -> Self::Output {
         match self {
             //ColorNodes::Red => PalletteColor::Red,
             PalletteColorNodes::Modulus {
@@ -44,45 +55,133 @@ impl Node for PalletteColorNodes {
 
                 color_table[[x_index, y_index]]
             }
-            PalletteColorNodes::SimplexNoise { noise } => { 
-                let noise_value = (noise.get([x as f64 * 0.025, y as f64 * 0.025, t as f64 * 0.1])) + 0.5;
-                PalletteColor::from_index((noise_value * (MAX_COLORS - 1) as f64) as usize)}
-            PalletteColorNodes::Worley { noise } => { 
-                let noise_value = (noise.get([x as f64 * 0.025, y as f64 * 0.025, t as f64 * 0.1]).abs());
-                PalletteColor::from_index((noise_value * (MAX_COLORS - 1) as f64) as usize)}
-            PalletteColorNodes::ComboNoise { n1, n2 } => { 
-                let noise_value1 = n1.get([x as f64 * 0.025, y as f64 * 0.025, t as f64 * 0.1]) + 0.5;
-                let noise_value2 = n2.get([x as f64 * 0.025, y as f64 * 0.025, t as f64 * 0.1]).abs();
+            PalletteColorNodes::SimplexNoise { noise } => {
+                let noise_value =
+                    (noise.get([x as f64 * 0.025, y as f64 * 0.025, t as f64 * 0.1])) + 0.5;
+                PalletteColor::from_index((noise_value * (MAX_COLORS - 1) as f64) as usize)
+            }
+            PalletteColorNodes::Worley { noise } => {
+                let noise_value = noise
+                    .get([x as f64 * 0.025, y as f64 * 0.025, t as f64 * 0.1])
+                    .abs();
+                PalletteColor::from_index((noise_value * (MAX_COLORS - 1) as f64) as usize)
+            }
+            PalletteColorNodes::ComboNoise { n1, n2 } => {
+                let noise_value1 =
+                    n1.get([x as f64 * 0.025, y as f64 * 0.025, t as f64 * 0.1]) + 0.5;
+                let noise_value2 = n2
+                    .get([x as f64 * 0.025, y as f64 * 0.025, t as f64 * 0.1])
+                    .abs();
 
-                PalletteColor::from_index((noise_value1 * noise_value2 * (MAX_COLORS - 1) as f64) as usize)
+                PalletteColor::from_index(
+                    (noise_value1 * noise_value2 * (MAX_COLORS - 1) as f64) as usize,
+                )
             }
         }
     }
 }
 
 // pub enum RangeFunctionNodes {
-//     RangeFunction { function: RangeFunction },    
+//     RangeFunction { function: RangeFunction },
 // }
 
 // pub enum NeighbourhoodNodes {
-    
+
 // }
 
-// pub enum SignedNormalisedFloatNodes {
-//     Sin,
-//     Tan,
-//     Cos,
-//     Arctan,
-//     Cosec,
-//     Cot,
-//     Random,
-//     Constant,
-// }
+pub enum FloatNodes {
+    Tan(Box<AngleNodes>),
+    Constant(f32),
+}
 
-// pub enum UnsignedNormalisedFloatNodes {
-//     Constant,
-//     Random,
-// }
+impl Node for FloatNodes {
+    type Output = f32;
+
+    fn compute(&self, x: usize, y: usize, t: f64) -> Self::Output {
+        use FloatNodes::*;
+
+        match self {
+            Tan(child) => f32::tan(child.compute(x, y, t).into_inner()),
+            Constant(v) => *v,
+        }
+    }
+}
+
+pub enum AngleNodes {
+    ArcSin(Box<SignedFloatNormalisedNodes>),
+    ArcCos(Box<SignedFloatNormalisedNodes>),
+    ArcTan(Box<FloatNodes>),
+    Random,
+    Constant(Angle),
+    FromSignedFloatNormalised(Box<SignedFloatNormalisedNodes>),
+    FromUnsignedFloatNormalised(Box<UnsignedFloatNormalisedNodes>),
+}
+
+impl Node for AngleNodes {
+    type Output = Angle;
+
+    fn compute(&self, x: usize, y: usize, t: f64) -> Self::Output {
+        use AngleNodes::*;
+
+        match self {
+            ArcSin(child) => Angle::new(f32::asin(child.compute(x, y, t).into_inner())),
+            ArcCos(child) => Angle::new(f32::acos(child.compute(x, y, t).into_inner())),
+            ArcTan(child) => Angle::new(f32::atan(child.compute(x, y, t))),
+            Random => Angle::random(),
+            Constant(v) => *v,
+            FromSignedFloatNormalised(child) => child.compute(x, y, t).to_angle(),
+            FromUnsignedFloatNormalised(child) => child.compute(x, y, t).to_angle(),
+        }
+    }
+}
+
+pub enum SignedFloatNormalisedNodes {
+    Sin(Box<AngleNodes>),
+    Cos(Box<AngleNodes>),
+    Random,
+    Constant(SignedFloatNormalised),
+    FromAngle(Box<AngleNodes>),
+    FromUnsignedFloatNormalised(Box<UnsignedFloatNormalisedNodes>),
+}
+
+impl Node for SignedFloatNormalisedNodes {
+    type Output = SignedFloatNormalised;
+
+    fn compute(&self, x: usize, y: usize, t: f64) -> Self::Output {
+        use SignedFloatNormalisedNodes::*;
+
+        match self {
+            Sin(child) => SignedFloatNormalised::new(f32::sin(child.compute(x, y, t).into_inner())),
+            Cos(child) => SignedFloatNormalised::new(f32::cos(child.compute(x, y, t).into_inner())),
+            Random => SignedFloatNormalised::random(),
+            FromAngle(child) => child.compute(x, y, t).to_signed(),
+            FromUnsignedFloatNormalised(child) => child.compute(x, y, t).to_signed(),
+            Constant(v) => *v,
+        }
+    }
+}
+
+pub enum UnsignedFloatNormalisedNodes {
+    Random,
+    Constant(UnsignedFloatNormalised),
+    FromAngle(Box<AngleNodes>),
+    FromSignedFloatNormalised(Box<SignedFloatNormalisedNodes>),
+}
+
+impl Node for UnsignedFloatNormalisedNodes {
+    type Output = UnsignedFloatNormalised;
+
+    fn compute(&self, x: usize, y: usize, t: f64) -> Self::Output {
+        use UnsignedFloatNormalisedNodes::*;
+
+        match self {
+            Random => UnsignedFloatNormalised::random(),
+            Constant(v) => *v,
+            FromAngle(child) => child.compute(x, y, t).to_unsigned(),
+            FromSignedFloatNormalised(child) => child.compute(x, y, t).to_unsigned(),
+        }
+    }
+}
 
 // pub enum GGColorNodes {
 //     DecomposeToComponents { r: f32, g: f32, b: f32 },
