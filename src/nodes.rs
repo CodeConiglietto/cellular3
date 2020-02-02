@@ -90,8 +90,8 @@ impl Node for PalletteColorNodes {
 // }
 
 pub enum FloatNodes {
-    Tan(Box<AngleNodes>),
-    Constant(f32),
+    Tan { child: Box<AngleNodes> },
+    Constant { value: f32 },
 }
 
 impl Node for FloatNodes {
@@ -101,20 +101,32 @@ impl Node for FloatNodes {
         use FloatNodes::*;
 
         match self {
-            Tan(child) => f32::tan(child.compute(x, y, t).into_inner()),
-            Constant(v) => *v,
+            Tan { child } => f32::tan(child.compute(x, y, t).into_inner()),
+            Constant { value } => *value,
         }
     }
 }
 
 pub enum AngleNodes {
-    ArcSin(Box<SignedFloatNormalisedNodes>),
-    ArcCos(Box<SignedFloatNormalisedNodes>),
-    ArcTan(Box<FloatNodes>),
+    ArcSin {
+        child: Box<SignedFloatNormalisedNodes>,
+    },
+    ArcCos {
+        child: Box<SignedFloatNormalisedNodes>,
+    },
+    ArcTan {
+        child: Box<FloatNodes>,
+    },
     Random,
-    Constant(Angle),
-    FromSignedFloatNormalised(Box<SignedFloatNormalisedNodes>),
-    FromUnsignedFloatNormalised(Box<UnsignedFloatNormalisedNodes>),
+    Constant {
+        value: Angle,
+    },
+    FromSignedFloatNormalised {
+        child: Box<SignedFloatNormalisedNodes>,
+    },
+    FromUnsignedFloatNormalised {
+        child: Box<UnsignedFloatNormalisedNodes>,
+    },
 }
 
 impl Node for AngleNodes {
@@ -124,24 +136,34 @@ impl Node for AngleNodes {
         use AngleNodes::*;
 
         match self {
-            ArcSin(child) => Angle::new(f32::asin(child.compute(x, y, t).into_inner())),
-            ArcCos(child) => Angle::new(f32::acos(child.compute(x, y, t).into_inner())),
-            ArcTan(child) => Angle::new(f32::atan(child.compute(x, y, t))),
+            ArcSin { child } => Angle::new(f32::asin(child.compute(x, y, t).into_inner())),
+            ArcCos { child } => Angle::new(f32::acos(child.compute(x, y, t).into_inner())),
+            ArcTan { child } => Angle::new(f32::atan(child.compute(x, y, t))),
             Random => Angle::random(),
-            Constant(v) => *v,
-            FromSignedFloatNormalised(child) => child.compute(x, y, t).to_angle(),
-            FromUnsignedFloatNormalised(child) => child.compute(x, y, t).to_angle(),
+            Constant { value } => *value,
+            FromSignedFloatNormalised { child } => child.compute(x, y, t).to_angle(),
+            FromUnsignedFloatNormalised { child } => child.compute(x, y, t).to_angle(),
         }
     }
 }
 
 pub enum SignedFloatNormalisedNodes {
-    Sin(Box<AngleNodes>),
-    Cos(Box<AngleNodes>),
+    Sin {
+        child: Box<AngleNodes>,
+    },
+    Cos {
+        child: Box<AngleNodes>,
+    },
     Random,
-    Constant(SignedFloatNormalised),
-    FromAngle(Box<AngleNodes>),
-    FromUnsignedFloatNormalised(Box<UnsignedFloatNormalisedNodes>),
+    Constant {
+        value: SignedFloatNormalised,
+    },
+    FromAngle {
+        child: Box<AngleNodes>,
+    },
+    FromUnsignedFloatNormalised {
+        child: Box<UnsignedFloatNormalisedNodes>,
+    },
 }
 
 impl Node for SignedFloatNormalisedNodes {
@@ -151,21 +173,31 @@ impl Node for SignedFloatNormalisedNodes {
         use SignedFloatNormalisedNodes::*;
 
         match self {
-            Sin(child) => SignedFloatNormalised::new(f32::sin(child.compute(x, y, t).into_inner())),
-            Cos(child) => SignedFloatNormalised::new(f32::cos(child.compute(x, y, t).into_inner())),
+            Sin { child } => {
+                SignedFloatNormalised::new(f32::sin(child.compute(x, y, t).into_inner()))
+            }
+            Cos { child } => {
+                SignedFloatNormalised::new(f32::cos(child.compute(x, y, t).into_inner()))
+            }
             Random => SignedFloatNormalised::random(),
-            FromAngle(child) => child.compute(x, y, t).to_signed(),
-            FromUnsignedFloatNormalised(child) => child.compute(x, y, t).to_signed(),
-            Constant(v) => *v,
+            FromAngle { child } => child.compute(x, y, t).to_signed(),
+            FromUnsignedFloatNormalised { child } => child.compute(x, y, t).to_signed(),
+            Constant { value } => *value,
         }
     }
 }
 
 pub enum UnsignedFloatNormalisedNodes {
     Random,
-    Constant(UnsignedFloatNormalised),
-    FromAngle(Box<AngleNodes>),
-    FromSignedFloatNormalised(Box<SignedFloatNormalisedNodes>),
+    Constant {
+        value: UnsignedFloatNormalised,
+    },
+    FromAngle {
+        child: Box<AngleNodes>,
+    },
+    FromSignedFloatNormalised {
+        child: Box<SignedFloatNormalisedNodes>,
+    },
 }
 
 impl Node for UnsignedFloatNormalisedNodes {
@@ -176,9 +208,9 @@ impl Node for UnsignedFloatNormalisedNodes {
 
         match self {
             Random => UnsignedFloatNormalised::random(),
-            Constant(v) => *v,
-            FromAngle(child) => child.compute(x, y, t).to_unsigned(),
-            FromSignedFloatNormalised(child) => child.compute(x, y, t).to_unsigned(),
+            Constant { value } => *value,
+            FromAngle { child } => child.compute(x, y, t).to_unsigned(),
+            FromSignedFloatNormalised { child } => child.compute(x, y, t).to_unsigned(),
         }
     }
 }
