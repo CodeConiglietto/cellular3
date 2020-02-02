@@ -11,3 +11,4 @@ ggez = "*"
 ndarray = { version = "*", features = ["rayon"] }
 rand = "*"
 rayon = "*"
+noise = "*"

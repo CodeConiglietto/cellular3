@@ -1,3 +1,9 @@
+use crate::colors::{PalletteColor, WHITE};
+use crate::constants::*;
+use crate::nodes::PalletteColorNodes;
+use crate::pipeline::Pipeline;
+use crate::reseeders::{Reseed, Reseeder};
+use crate::rules::{generate_random_rule_set, mutate_rule_set, RuleSet};
 use ggez::{
     conf::WindowMode,
     event::{self, EventHandler},
@@ -11,17 +17,14 @@ use std::{
     iter::Sum,
     ops::{Add, AddAssign, Div},
 };
+use noise::{ OpenSimplex, Worley };
 
-const MAX_NEIGHBOUR_ARRAY_COUNT: usize = 9; //Use this for array indexes as it counts zero
-const MAX_NEIGHBOUR_COUNT: i32 = 8; //Use this for total neighbours excluding zero
-const MAX_COLORS: usize = 8;
-const TICS_PER_UPDATE: i32 = 27;
-
-const INITIAL_WINDOW_WIDTH: f32 = 1080.0;
-const INITIAL_WINDOW_HEIGHT: f32 = 1080.0;
-
-const CELL_ARRAY_WIDTH: usize = 270;
-const CELL_ARRAY_HEIGHT: usize = 270;
+mod colors;
+mod constants;
+mod nodes;
+mod pipeline;
+mod reseeders;
+mod rules;
 
 fn main() {
     // Make a Context.
@@ -46,292 +49,6 @@ fn main() {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Color {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-}
-
-const WHITE: Color = Color {
-    r: 255,
-    g: 255,
-    b: 255,
-};
-
-impl From<Color> for GGColor {
-    fn from(c: Color) -> GGColor {
-        GGColor {
-            r: c.r as f32 / 255.0,
-            g: c.g as f32 / 255.0,
-            b: c.b as f32 / 255.0,
-            a: 1.0,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-enum PalletteColor {
-    Black,
-    Red,
-    Green,
-    Blue,
-    Cyan,
-    Magenta,
-    Yellow,
-    White,
-}
-
-impl PalletteColor {
-    fn get_color(&self) -> Color {
-        match self {
-            PalletteColor::Black => Color { r: 0, g: 0, b: 0 },
-            PalletteColor::Red => Color { r: 255, g: 0, b: 0 },
-            PalletteColor::Green => Color { r: 0, g: 255, b: 0 },
-            PalletteColor::Blue => Color { r: 0, g: 0, b: 255 },
-            PalletteColor::Cyan => Color {
-                r: 0,
-                g: 255,
-                b: 255,
-            },
-            PalletteColor::Magenta => Color {
-                r: 255,
-                g: 0,
-                b: 255,
-            },
-            PalletteColor::Yellow => Color {
-                r: 255,
-                g: 255,
-                b: 0,
-            },
-            PalletteColor::White => Color {
-                r: 255,
-                g: 255,
-                b: 255,
-            },
-        }
-    }
-
-    fn to_index(&self) -> usize {
-        match self {
-            PalletteColor::Black => 0,
-            PalletteColor::Red => 1,
-            PalletteColor::Green => 2,
-            PalletteColor::Blue => 3,
-            PalletteColor::Cyan => 4,
-            PalletteColor::Magenta => 5,
-            PalletteColor::Yellow => 6,
-            PalletteColor::White => 7,
-        }
-    }
-
-    fn from_index(index: usize) -> PalletteColor {
-        match index {
-            0 => PalletteColor::Black,
-            1 => PalletteColor::Red,
-            2 => PalletteColor::Green,
-            3 => PalletteColor::Blue,
-            4 => PalletteColor::Cyan,
-            5 => PalletteColor::Magenta,
-            6 => PalletteColor::Yellow,
-            7 => PalletteColor::White,
-            _ => panic!(),
-        }
-    }
-
-    fn to_composites(&self) -> [bool; 3] {
-        match self {
-            PalletteColor::Black => [false, false, false],
-            PalletteColor::Red => [true, false, false],
-            PalletteColor::Green => [false, true, false],
-            PalletteColor::Blue => [false, false, true],
-            PalletteColor::Cyan => [false, true, true],
-            PalletteColor::Magenta => [true, false, true],
-            PalletteColor::Yellow => [true, true, false],
-            PalletteColor::White => [true, true, true],
-        }
-    }
-
-    fn from_composites(composites: [bool; 3]) -> PalletteColor {
-        match composites {
-            [false, false, false] => PalletteColor::Black,
-            [true, false, false] => PalletteColor::Red,
-            [false, true, false] => PalletteColor::Green,
-            [false, false, true] => PalletteColor::Blue,
-            [false, true, true] => PalletteColor::Cyan,
-            [true, false, true] => PalletteColor::Magenta,
-            [true, true, false] => PalletteColor::Yellow,
-            [true, true, true] => PalletteColor::White,
-        }
-    }
-
-    fn has_color(&self, other: PalletteColor) -> bool {
-        let mut has_color = false;
-        let current_color = self.to_composites();
-        let other_color = other.to_composites();
-
-        for i in 0..3 {
-            has_color = has_color || (current_color[i] && other_color[i]);
-        }
-
-        has_color
-    }
-
-    fn give_color(&mut self, other: PalletteColor) -> [bool; 3] {
-        let mut new_color = [false; 3];
-        let current_color = self.to_composites();
-        let other_color = other.to_composites();
-
-        for i in 0..3 {
-            new_color[i] = current_color[i] || other_color[i];
-        }
-
-        new_color
-    }
-
-    fn take_color(&mut self, other: PalletteColor) -> [bool; 3] {
-        let mut new_color = [false; 3];
-        let current_color = self.to_composites();
-        let other_color = other.to_composites();
-
-        for i in 0..3 {
-            new_color[i] = !(current_color[i] && other_color[i]);
-        }
-
-        new_color
-    }
-}
-
-trait Reseed {
-    fn reseed(&self, cell_array: &mut Array2<PalletteColor>) {
-        let cell_array_width = cell_array.dim().0;
-        let cell_array_height = cell_array.dim().1;
-
-        for x in 0..cell_array_width {
-            for y in 0..cell_array_height {
-                cell_array[[x, y]] = self.reseed_cell(x, y);
-            }
-        }
-    }
-
-    fn mutate(&mut self);
-    fn reseed_cell(&self, x: usize, y: usize) -> PalletteColor;
-}
-
-enum Reseeder {
-    Modulus {
-        x_mod: usize,
-        y_mod: usize,
-        color_table: Array2<PalletteColor>,
-    },
-}
-
-impl Reseed for Reseeder {
-    fn reseed_cell(&self, x: usize, y: usize) -> PalletteColor {
-        match self {
-            Reseeder::Modulus {
-                x_mod,
-                y_mod,
-                color_table,
-            } => {
-                let x_index = if x % x_mod == 0 { 1 } else { 0 };
-                let y_index = if y % y_mod == 0 { 1 } else { 0 };
-
-                color_table[[x_index, y_index]]
-            }
-        }
-    }
-
-    fn mutate(&mut self) {
-        match self {
-            Reseeder::Modulus {
-                x_mod,
-                y_mod,
-                color_table,
-            } => {
-                let min_cell_array_dim = CELL_ARRAY_WIDTH.min(CELL_ARRAY_HEIGHT);
-
-                if random::<bool>() {
-                    *x_mod = (random::<usize>() % min_cell_array_dim) + 1;
-                }
-
-                if random::<bool>() {
-                    *x_mod = ((*x_mod + 1) % min_cell_array_dim) + 1;
-                }
-
-                if random::<bool>() {
-                    *y_mod = (random::<usize>() % min_cell_array_dim) + 1;
-                }
-
-                if random::<bool>() {
-                    *y_mod = ((*y_mod + 1) % min_cell_array_dim) + 1;
-                }
-
-                if random::<bool>() {
-                    color_table[[random::<usize>() % 2, random::<usize>() % 2]] =
-                        get_random_color();
-                }
-            }
-        }
-    }
-}
-
-//One of these for each one-way colour relation
-#[derive(Clone, Copy)]
-struct Rule {
-    life_neighbours: [bool; MAX_NEIGHBOUR_ARRAY_COUNT], //How many neighbours we need to be born
-    death_neighbours: [bool; MAX_NEIGHBOUR_ARRAY_COUNT], //How many neighbours we need to be killed
-}
-
-//One of these per colour
-#[derive(Clone, Copy)]
-struct RuleSet {
-    rules: [Rule; MAX_COLORS],
-}
-
-fn generate_random_neighbour_list() -> [bool; MAX_NEIGHBOUR_ARRAY_COUNT] {
-    [
-        random::<bool>(),
-        random::<bool>(),
-        random::<bool>(),
-        random::<bool>(),
-        random::<bool>(),
-        random::<bool>(),
-        random::<bool>(),
-        random::<bool>(),
-        random::<bool>(),
-    ]
-}
-
-fn generate_random_rule() -> Rule {
-    Rule {
-        life_neighbours: generate_random_neighbour_list(),
-        death_neighbours: generate_random_neighbour_list(),
-    }
-}
-
-fn generate_random_rule_set() -> RuleSet {
-    RuleSet {
-        rules: [
-            generate_random_rule(),
-            generate_random_rule(),
-            generate_random_rule(),
-            generate_random_rule(),
-            generate_random_rule(),
-            generate_random_rule(),
-            generate_random_rule(),
-            generate_random_rule(),
-        ],
-    }
-}
-
-fn mutate_rule_set(rule_set: &mut RuleSet) {
-    rule_set.rules[random::<usize>() % MAX_COLORS].life_neighbours
-        [random::<usize>() % MAX_NEIGHBOUR_ARRAY_COUNT] = random::<bool>();
-    rule_set.rules[random::<usize>() % MAX_COLORS].death_neighbours
-        [random::<usize>() % MAX_NEIGHBOUR_ARRAY_COUNT] = random::<bool>();
-}
-
 struct MyGame {
     //Game draw texture
     image: Image,
@@ -350,6 +67,10 @@ struct MyGame {
     average_update_stat: UpdateStat,
     //The mechanism responsible for creating an initial state if all automata have died
     reseeder: Reseeder,
+    //The pipeline that computes the next screen state
+    pipeline: Pipeline,
+
+    current_sync_tic: i32,
 }
 
 impl MyGame {
@@ -401,8 +122,24 @@ impl MyGame {
             reseeder: Reseeder::Modulus {
                 x_mod: 4,
                 y_mod: 4,
+                x_offset: random::<usize>() % CELL_ARRAY_WIDTH,
+                y_offset: random::<usize>() % CELL_ARRAY_HEIGHT,
                 color_table: Array2::from_shape_fn((2, 2), |_| get_random_color()),
             },
+
+            pipeline: Pipeline {
+                root_node: Box::new(
+                    // ColorNodes::Modulus {
+                    // x_mod: 4,
+                    // y_mod: 4,
+                    // x_offset: random::<usize>() % CELL_ARRAY_WIDTH,
+                    // y_offset: random::<usize>() % CELL_ARRAY_HEIGHT,
+                    // color_table: Array2::from_shape_fn((2, 2), |_| get_random_color()),
+                    PalletteColorNodes::ComboNoise{n1: OpenSimplex::new(), n2: Worley::new()}
+                ),
+            },
+
+            current_sync_tic: 0,
         }
     }
 }
@@ -561,6 +298,9 @@ impl EventHandler for MyGame {
         let rule_sets = self.rule_sets;
         let cell_array_view = self.cell_array.view();
 
+        let pipeline = &self.pipeline;
+        let current_sync_tic = self.current_sync_tic;
+
         let slice_update_stat: UpdateStat = ndarray::Zip::indexed(current_update_slice)
             .and(new_update_slice)
             .into_par_iter()
@@ -568,7 +308,7 @@ impl EventHandler for MyGame {
                 let neighbour_result =
                     get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
 
-                let new_color = get_next_color(rule_sets, *current, neighbour_result.0);
+                let new_color = pipeline.root_node.compute(x, y + slice_y as  usize, current_sync_tic as f64); //get_next_color(rule_sets, *current, neighbour_result.0);
 
                 let older_color = *new;
                 *new = new_color;
@@ -590,11 +330,13 @@ impl EventHandler for MyGame {
         let total_cells = width * height;
 
         if timer::ticks(ctx) as i32 % TICS_PER_UPDATE == 0 {
+            self.current_sync_tic += 1;
+
             self.average_update_stat =
                 (self.average_update_stat + self.rolling_update_stat_total) / 2;
 
-            let sqrt_stagnant_cells =
-                ((total_cells - slice_update_stat.active_cells) as f32).sqrt() as i32;
+            // let sqrt_stagnant_cells =
+            //     ((total_cells - slice_update_stat.active_cells) as f32).sqrt() as i32;
 
             let activity_value = self.average_update_stat.active_cells as f32 / total_cells as f32;
             let similarity_value = self.average_update_stat.similar_neighbours as f32
@@ -605,7 +347,7 @@ impl EventHandler for MyGame {
 
             if activity_value < 0.001 || similarity_value > 0.999 {
                 //if random::<i32>() % (sqrt_stagnant_cells / 2 + 1) > slice_update_stat.active_cells {
-                &self.reseeder.reseed(&mut self.new_cell_array);
+                //&self.reseeder.reseed(&mut self.new_cell_array);
                 &self.reseeder.mutate();
 
                 mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);

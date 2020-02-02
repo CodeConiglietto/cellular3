@@ -1,6 +1,8 @@
 {
     "cSpell.words": [
+        "arctan",
         "batch",
+        "float",
         "ggez",
         "lerp",
         "lerped",
@@ -9,9 +11,14 @@
         "neighbour",
         "neighbourhood",
         "neighbours",
+        "nodes",
+        "normalised",
         "reseeder",
+        "reseeders",
         "sprite",
         "spritebatch",
-        "value"
+        "unsigned",
+        "value",
+        "worley"
     ]
 }
