@@ -2,19 +2,27 @@ use std::f32::consts::PI;
 
 use rand::prelude::*;
 
+pub trait Generatable: Sized {
+    fn generate() -> Self{
+        Self::generate_rng(&mut rand::thread_rng())
+    }
+
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self;
+}
+
 #[derive(Clone, Copy, Debug)]
-pub struct UnsignedFloatNormalised {
+pub struct UNFloat {
     value: f32,
 }
 
-impl UnsignedFloatNormalised {
+impl UNFloat {
     pub fn new_unchecked(value: f32) -> Self {
         Self { value }
     }
 
     pub fn new(value: f32) -> Self {
-        assert!(value >= 0.0);
-        assert!(value <= 1.0);
+        assert!(value >= 0.0, "value: {}", value);
+        assert!(value <= 1.0, "value: {}", value);
 
         Self::new_unchecked(value)
     }
@@ -35,17 +43,23 @@ impl UnsignedFloatNormalised {
         Angle::new_from_range(self.value, 0.0, 1.0)
     }
 
-    pub fn to_signed(self) -> SignedFloatNormalised {
-        SignedFloatNormalised::new_from_range(self.value, 0.0, 1.0)
+    pub fn to_signed(self) -> SNFloat {
+        SNFloat::new_from_range(self.value, 0.0, 1.0)
+    }
+}
+
+impl Generatable for UNFloat {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self{
+        UNFloat::new(rng.gen::<f32>())
     }
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct SignedFloatNormalised {
+pub struct SNFloat {
     value: f32,
 }
 
-impl SignedFloatNormalised {
+impl SNFloat {
     pub fn new_unchecked(value: f32) -> Self {
         Self { value }
     }
@@ -73,8 +87,8 @@ impl SignedFloatNormalised {
         Angle::new_from_range(self.value, -1.0, 1.0)
     }
 
-    pub fn to_unsigned(self) -> UnsignedFloatNormalised {
-        UnsignedFloatNormalised::new_from_range(self.value, -1.0, 1.0)
+    pub fn to_unsigned(self) -> UNFloat {
+        UNFloat::new_from_range(self.value, -1.0, 1.0)
     }
 }
 
@@ -109,12 +123,12 @@ impl Angle {
         self.value
     }
 
-    pub fn to_signed(self) -> SignedFloatNormalised {
-        SignedFloatNormalised::new_from_range(self.value, 0.0, 2.0 * PI)
+    pub fn to_signed(self) -> SNFloat {
+        SNFloat::new_from_range(self.value, -1.0 * PI, PI)
     }
 
-    pub fn to_unsigned(self) -> UnsignedFloatNormalised {
-        UnsignedFloatNormalised::new_from_range(self.value, 0.0, 2.0 * PI)
+    pub fn to_unsigned(self) -> UNFloat {
+        UNFloat::new_from_range(self.value, 0.0, 2.0 * PI)
     }
 }
 
@@ -123,10 +137,10 @@ fn map_range(value: f32, from: (f32, f32), to: (f32, f32)) -> f32 {
     let (from_min, from_max) = from;
     let (to_min, to_max) = to;
 
-    assert!(from_min < from_max);
-    assert!(from_min <= value);
-    assert!(value <= from_max);
-    assert!(to_min < to_max);
+    assert!(from_min < from_max, "from_min: {}, from_max: {}", from_min, from_max);
+    assert!(from_min <= value, "from_min: {}, value: {}", from_min, value);
+    assert!(value <= from_max, "value: {}, from_max: {}", value, from_max);
+    assert!(to_min < to_max, "to_min: {}, to_max: {}", to_min, to_max);
 
     let out = ((value - from_min) / (from_max - from_min)) * (to_max - to_min) + to_min;
 

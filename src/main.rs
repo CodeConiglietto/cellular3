@@ -6,19 +6,23 @@ use std::{
 use ggez::{
     conf::WindowMode,
     event::{self, EventHandler},
-    graphics::{self, spritebatch::SpriteBatch, Color as GGColor, DrawParam, Image, Rect},
+    graphics::{self, spritebatch::SpriteBatch, DrawParam, Image, Rect},
     timer, Context, ContextBuilder, GameResult,
 };
 use ndarray::{s, Array2, ArrayView2};
-use noise::{OpenSimplex, Worley};
+use noise::{
+    BasicMulti, Billow, Checkerboard, Fbm, HybridMulti, OpenSimplex, RangeFunction, RidgedMulti,
+    SuperSimplex, Value, Worley,
+};
 use rand::prelude::*;
 use rayon::prelude::*;
 
 use crate::{
-    colors::{PalletteColor, WHITE},
+    colors::*,
     constants::*,
-    nodes::PalletteColorNodes,
-    pipeline::Pipeline,
+    datatypes::*,
+    nodes::*,
+    updatestate::*,
     reseeders::{Reseed, Reseeder},
     rules::{generate_random_rule_set, mutate_rule_set, RuleSet},
 };
@@ -27,9 +31,9 @@ mod colors;
 mod constants;
 mod datatypes;
 mod nodes;
-mod pipeline;
 mod reseeders;
 mod rules;
+mod updatestate;
 
 fn main() {
     // Make a Context.
@@ -60,20 +64,20 @@ struct MyGame {
     //Screen bounds
     bounds: Rect,
     //The actual cell array
-    old_cell_array: Array2<PalletteColor>,
-    cell_array: Array2<PalletteColor>,
-    new_cell_array: Array2<PalletteColor>,
+    old_cell_array: Array2<FloatColor>,
+    cell_array: Array2<FloatColor>,
+    new_cell_array: Array2<FloatColor>,
 
-    rule_sets: [RuleSet; MAX_COLORS],
+    //rule_sets: [RuleSet; MAX_COLORS],
 
     //The rolling total used to calculate the average per update instead of per slice
-    rolling_update_stat_total: UpdateStat,
+    //rolling_update_stat_total: UpdateStat,
     //The average update stat over time, calculated by averaging rolling total and itself once an update
-    average_update_stat: UpdateStat,
+    //average_update_stat: UpdateStat,
     //The mechanism responsible for creating an initial state if all automata have died
-    reseeder: Reseeder,
-    //The pipeline that computes the next screen state
-    pipeline: Pipeline,
+    //reseeder: Reseeder,
+    //The root node for the tree that computes the next screen state
+    root_node: Box<FloatColorNodes>,
 
     current_sync_tic: i32,
 }
@@ -92,60 +96,130 @@ impl MyGame {
 
             bounds: Rect::new(0.0, 0.0, pixels_x, pixels_y),
 
-            old_cell_array: Array2::from_shape_fn(
-                (cells_x, cells_y),
-                |(_x, _y)| -> PalletteColor { PalletteColor::Black },
-            ),
-            cell_array: Array2::from_shape_fn((cells_x, cells_y), |(_x, _y)| -> PalletteColor {
-                PalletteColor::Black
+            old_cell_array: Array2::from_shape_fn((cells_x, cells_y), |(_x, _y)| -> FloatColor {
+                FloatColor {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 1.0,
+                }
             }),
-            new_cell_array: Array2::from_shape_fn(
-                (cells_x, cells_y),
-                |(_x, _y)| -> PalletteColor { PalletteColor::Black },
+            cell_array: Array2::from_shape_fn((cells_x, cells_y), |(_x, _y)| -> FloatColor {
+                FloatColor {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 1.0,
+                }
+            }),
+            new_cell_array: Array2::from_shape_fn((cells_x, cells_y), |(_x, _y)| -> FloatColor {
+                FloatColor {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 1.0,
+                }
+            }),
+
+            // rule_sets: [
+            //     generate_random_rule_set(),
+            //     generate_random_rule_set(),
+            //     generate_random_rule_set(),
+            //     generate_random_rule_set(),
+            //     generate_random_rule_set(),
+            //     generate_random_rule_set(),
+            //     generate_random_rule_set(),
+            //     generate_random_rule_set(),
+            // ],
+
+            // rolling_update_stat_total: UpdateStat {
+            //     active_cells: 0,
+            //     similar_neighbours: 0,
+            // },
+            // average_update_stat: UpdateStat {
+            //     active_cells: 0,
+            //     similar_neighbours: 0,
+            // },
+
+            // reseeder: Reseeder::Modulus {
+            //     x_mod: 4,
+            //     y_mod: 4,
+            //     x_offset: random::<usize>() % CELL_ARRAY_WIDTH,
+            //     y_offset: random::<usize>() % CELL_ARRAY_HEIGHT,
+            //     color_table: Array2::from_shape_fn((2, 2), |_| get_random_color()),
+            // },
+            root_node: Box::new(
+                FloatColorNodes::HSV{
+                        h: Box::new(
+                            UNFloatNodes::SquareSNFloat{
+                                child: Box::new(
+                                    SNFloatNodes::Sin{
+                                        child: Box::new(
+                                            AngleNodes::FromSNFloat{
+                                                child: Box::new(
+                                                    SNFloatNodes::Multiply {
+                                                        child_a: Box::new(
+                                                            SNFloatNodes::RidgedMultiNoise {
+                                                                noise: RidgedMulti::new(),
+                                                            }
+                                                        ),
+                                                        child_b: Box::new(
+                                                            SNFloatNodes::WorleyNoise {
+                                                                noise: Worley::new().enable_range(true).set_displacement(0.9).set_range_function(RangeFunction::Manhattan),
+                                                            }
+                                                        ),
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                        ),
+                        s: Box::new(
+                            // UNFloatNodes::FromSNFloat {
+                            //     child: Box::new(
+                            //         SNFloatNodes::OpenSimplexNoise {
+                            //             noise: OpenSimplex::new(),
+                            //         }
+                            //     ),
+                            // },
+                            // UNFloatNodes::FromSNFloat {
+                            //     child: Box::new(
+                            //         SNFloatNodes::Constant {
+                            //             value: SNFloat::new(1.0),
+                            //         }
+                            //     ),
+                            // },
+                            UNFloatNodes::ColorComponent {
+                                child: Box::new(FloatColorNodes::FromCellArray),
+                            }
+                        ),
+                        v: Box::new(
+                            UNFloatNodes::FromSNFloat {
+                                child: Box::new(
+                                    SNFloatNodes::OpenSimplexNoise {
+                                        noise: OpenSimplex::new(),
+                                    }
+                                ),
+                            }
+                        ),
+                }
+                // PalletteColorNodes::EqColor {
+                //     child_a: Box::new(PalletteColorNodes::FromUNFloat {
+                //         child: UNFloatNodes::FromSNFloat {
+                //             child: Box::new(SNFloatNodes::RidgedMultiNoise { noise: RidgedMulti::new() }),
+                //         },
+                //     }),
+                //     child_b: Box::new(PalletteColorNodes::FromUNFloat {
+                //         child: UNFloatNodes::FromSNFloat {
+                //             child: Box::new(SNFloatNodes::WorleyNoise {
+                //                 noise: Worley::new(),
+                //             }),
+                //         },
+                //     }),
+                // },
             ),
-
-            rule_sets: [
-                generate_random_rule_set(),
-                generate_random_rule_set(),
-                generate_random_rule_set(),
-                generate_random_rule_set(),
-                generate_random_rule_set(),
-                generate_random_rule_set(),
-                generate_random_rule_set(),
-                generate_random_rule_set(),
-            ],
-
-            rolling_update_stat_total: UpdateStat {
-                active_cells: 0,
-                similar_neighbours: 0,
-            },
-            average_update_stat: UpdateStat {
-                active_cells: 0,
-                similar_neighbours: 0,
-            },
-
-            reseeder: Reseeder::Modulus {
-                x_mod: 4,
-                y_mod: 4,
-                x_offset: random::<usize>() % CELL_ARRAY_WIDTH,
-                y_offset: random::<usize>() % CELL_ARRAY_HEIGHT,
-                color_table: Array2::from_shape_fn((2, 2), |_| get_random_color()),
-            },
-
-            pipeline: Pipeline {
-                root_node: Box::new(
-                    // ColorNodes::Modulus {
-                    // x_mod: 4,
-                    // y_mod: 4,
-                    // x_offset: random::<usize>() % CELL_ARRAY_WIDTH,
-                    // y_offset: random::<usize>() % CELL_ARRAY_HEIGHT,
-                    // color_table: Array2::from_shape_fn((2, 2), |_| get_random_color()),
-                    PalletteColorNodes::ComboNoise {
-                        n1: OpenSimplex::new(),
-                        n2: Worley::new(),
-                    },
-                ),
-            },
 
             current_sync_tic: 0,
         }
@@ -216,12 +290,12 @@ fn get_next_color(
         {
             //This color is killed
             if current_rule.death_neighbours[alive_neighbours[i]] {
-                new_color = PalletteColor::from_composites(new_color.take_color(index_color));
+                new_color = PalletteColor::from_components(new_color.take_color(index_color));
             }
         } else {
             //This color is dead but is being born again
             if current_rule.life_neighbours[alive_neighbours[i]] {
-                new_color = PalletteColor::from_composites(new_color.give_color(index_color));
+                new_color = PalletteColor::from_components(new_color.give_color(index_color));
             }
         }
     }
@@ -230,8 +304,8 @@ fn get_next_color(
 }
 
 //Simple color lerp - May be able to find a better one here: https://www.alanzucconi.com/2016/01/06/colour-interpolation/
-fn lerp_ggez_color(a: GGColor, b: GGColor, value: f32) -> GGColor {
-    GGColor {
+fn lerp_float_color(a: FloatColor, b: FloatColor, value: f32) -> FloatColor {
+    FloatColor {
         r: a.r + (b.r - a.r) * value,
         g: a.g + (b.g - a.g) * value,
         b: a.b + (b.b - a.b) * value,
@@ -303,23 +377,21 @@ impl EventHandler for MyGame {
         let current_update_slice = self.cell_array.slice(slice_information);
         let new_update_slice = self.new_cell_array.slice_mut(slice_information);
 
-        let rule_sets = self.rule_sets;
+        //let rule_sets = self.rule_sets;
         let cell_array_view = self.cell_array.view();
 
-        let pipeline = &self.pipeline;
         let current_sync_tic = self.current_sync_tic;
+
+        let root_node = &self.root_node;
 
         let slice_update_stat: UpdateStat = ndarray::Zip::indexed(current_update_slice)
             .and(new_update_slice)
             .into_par_iter()
             .map(|((x, y), current, new)| {
-                let neighbour_result =
-                    get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
+                // let neighbour_result =
+                //     get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
 
-                let new_color =
-                    pipeline
-                        .root_node
-                        .compute(x, y + slice_y as usize, current_sync_tic as f64); //get_next_color(rule_sets, *current, neighbour_result.0);
+                let new_color = root_node.compute(UpdateState{x: x, y: y + slice_y as usize, t: current_sync_tic, cell_array: cell_array_view}); //get_next_color(rule_sets, *current, neighbour_result.0);
 
                 let older_color = *new;
                 *new = new_color;
@@ -331,63 +403,63 @@ impl EventHandler for MyGame {
                     } else {
                         0
                     },
-                    similar_neighbours: neighbour_result.1,
+                    similar_neighbours: 0, //neighbour_result.1,
                 }
             })
             .sum();
 
-        self.rolling_update_stat_total += slice_update_stat;
+        //self.rolling_update_stat_total += slice_update_stat;
 
         let total_cells = width * height;
 
         if timer::ticks(ctx) as i32 % TICS_PER_UPDATE == 0 {
             self.current_sync_tic += 1;
 
-            self.average_update_stat =
-                (self.average_update_stat + self.rolling_update_stat_total) / 2;
+            //self.average_update_stat =
+            //    (self.average_update_stat + self.rolling_update_stat_total) / 2;
 
             // let sqrt_stagnant_cells =
             //     ((total_cells - slice_update_stat.active_cells) as f32).sqrt() as i32;
 
-            let activity_value = self.average_update_stat.active_cells as f32 / total_cells as f32;
-            let similarity_value = self.average_update_stat.similar_neighbours as f32
-                / (total_cells * MAX_NEIGHBOUR_COUNT) as f32;
+            // let activity_value = self.average_update_stat.active_cells as f32 / total_cells as f32;
+            // let similarity_value = self.average_update_stat.similar_neighbours as f32
+            //     / (total_cells * MAX_NEIGHBOUR_COUNT) as f32;
 
-            let similarity_value_squared = similarity_value * similarity_value;
-            let activity_value_squared = activity_value * activity_value;
+            // let similarity_value_squared = similarity_value * similarity_value;
+            // let activity_value_squared = activity_value * activity_value;
 
-            if activity_value < 0.001 || similarity_value > 0.999 {
-                //if random::<i32>() % (sqrt_stagnant_cells / 2 + 1) > slice_update_stat.active_cells {
-                //&self.reseeder.reseed(&mut self.new_cell_array);
-                &self.reseeder.mutate();
+            // if activity_value < 0.001 || similarity_value > 0.999 {
+            //     //if random::<i32>() % (sqrt_stagnant_cells / 2 + 1) > slice_update_stat.active_cells {
+            //     //&self.reseeder.reseed(&mut self.new_cell_array);
+            //     &self.reseeder.mutate();
 
-                mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);
+            //     mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);
 
-                // for _i in 0..random::<i32>() % (sqrt_stagnant_cells + 1) {
-                //     self.new_cell_array[[
-                //         random::<usize>() % width as usize,
-                //         random::<usize>() % height as usize,
-                //     ]] = get_random_color();
-                // }
-            }
+            //     // for _i in 0..random::<i32>() % (sqrt_stagnant_cells + 1) {
+            //     //     self.new_cell_array[[
+            //     //         random::<usize>() % width as usize,
+            //     //         random::<usize>() % height as usize,
+            //     //     ]] = get_random_color();
+            //     // }
+            // }
 
-            if similarity_value < random::<f32>() //It's noisy
-            || similarity_value_squared > random::<f32>() //It's flat
-            || activity_value > random::<f32>() //It's turbulent
-            || activity_value_squared < random::<f32>()
-            //It's unchanging
-            {
-                let mutations = TICS_PER_UPDATE;
+            // if similarity_value < random::<f32>() //It's noisy
+            // || similarity_value_squared > random::<f32>() //It's flat
+            // || activity_value > random::<f32>() //It's turbulent
+            // || activity_value_squared < random::<f32>()
+            // //It's unchanging
+            // {
+            //     let mutations = TICS_PER_UPDATE;
 
-                for _i in 0..random::<i32>() % mutations {
-                    mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);
-                }
-            }
+            //     for _i in 0..random::<i32>() % mutations {
+            //         mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);
+            //     }
+            // }
 
-            self.rolling_update_stat_total = UpdateStat {
-                active_cells: 0,
-                similar_neighbours: 0,
-            };
+            // self.rolling_update_stat_total = UpdateStat {
+            //     active_cells: 0,
+            //     similar_neighbours: 0,
+            // };
 
             //Rotate the three buffers by swapping
             std::mem::swap(&mut self.cell_array, &mut self.old_cell_array);
@@ -417,11 +489,7 @@ impl EventHandler for MyGame {
                 let old = &self.old_cell_array[[x, y]];
                 let current = &self.cell_array[[x, y]];
 
-                let lerped_color = lerp_ggez_color(
-                    old.get_color().into(),
-                    current.get_color().into(),
-                    lerp_value,
-                );
+                let lerped_color = lerp_float_color(*old, *current, lerp_value);
 
                 sprite_batch.add(DrawParam {
                     dest: [x as f32 * cell_width, y as f32 * cell_height].into(),

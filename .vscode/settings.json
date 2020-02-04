@@ -2,8 +2,10 @@
     "cSpell.words": [
         "arctan",
         "batch",
+        "datatypes",
         "float",
         "ggez",
+        "grayscale",
         "lerp",
         "lerped",
         "lerping",
@@ -13,11 +15,13 @@
         "neighbours",
         "nodes",
         "normalised",
+        "permutationtable",
         "reseeder",
         "reseeders",
         "sprite",
         "spritebatch",
         "unsigned",
+        "updatestate",
         "value",
         "worley"
     ]

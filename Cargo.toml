@@ -12,3 +12,4 @@ ndarray = { version = "*", features = ["rayon"] }
 rand = "*"
 rayon = "*"
 noise = "*"
+palette = "*"
