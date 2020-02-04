@@ -1,14 +1,7 @@
 use std::f32::consts::PI;
+use mutagen::Generatable;
 
 use rand::prelude::*;
-
-pub trait Generatable: Sized {
-    fn generate() -> Self{
-        Self::generate_rng(&mut rand::thread_rng())
-    }
-
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self;
-}
 
 #[derive(Clone, Copy, Debug)]
 pub struct UNFloat {
@@ -92,6 +85,12 @@ impl SNFloat {
     }
 }
 
+impl Generatable for SNFloat {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self{
+        SNFloat::new(rng.gen::<f32>() * 2.0 - 1.0)
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Angle {
     value: f32,
@@ -129,6 +128,12 @@ impl Angle {
 
     pub fn to_unsigned(self) -> UNFloat {
         UNFloat::new_from_range(self.value, 0.0, 2.0 * PI)
+    }
+}
+
+impl Generatable for Angle {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self{
+        Angle::new(rng.gen::<f32>() * 2.0 * PI - PI)
     }
 }
 

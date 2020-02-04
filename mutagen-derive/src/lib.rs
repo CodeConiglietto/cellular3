@@ -1,3 +1,5 @@
+extern crate proc_macro;
+
 use std::collections::HashMap;
 
 use proc_macro2::TokenStream as TokenStream2;
