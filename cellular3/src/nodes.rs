@@ -21,6 +21,7 @@ pub trait Node {
 }
 
 #[derive(Generatable, Mutatable, Debug)]
+#[mutagen(mut_reroll = 0.25)]
 pub enum FloatColorNodes {
     Grayscale {
         child: Box<UNFloatNodes>,
@@ -35,6 +36,7 @@ pub enum FloatColorNodes {
         s: Box<UNFloatNodes>,
         v: Box<UNFloatNodes>,
     },
+    #[mutagen(mut_reroll = 0.5)]
     FromCellArray,
 }
 
@@ -74,6 +76,7 @@ impl Node for FloatColorNodes {
 }
 
 #[derive(Generatable, Mutatable, Debug)]
+#[mutagen(mut_reroll = 0.25)]
 pub enum PalletteColorNodes {
     //Red,
     // Modulus {
@@ -226,6 +229,7 @@ impl Node for PalletteColorNodes {
 // }
 
 #[derive(Generatable, Mutatable, Debug)]
+#[mutagen(mut_reroll = 0.25)]
 pub enum SNFloatNodes {
     // Sin {
     //     child: Box<AngleNodes>,
@@ -307,6 +311,7 @@ impl Node for SNFloatNodes {
 }
 
 #[derive(Generatable, Mutatable, Debug)]
+#[mutagen(mut_reroll = 0.25)]
 pub enum UNFloatNodes {
     Random,
     Constant {

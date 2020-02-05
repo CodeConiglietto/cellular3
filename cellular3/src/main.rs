@@ -409,7 +409,7 @@ impl EventHandler for MyGame {
             //     similar_neighbours: 0,
             // };
 
-            if random::<u32>() % 10 == 0
+            if random::<u32>() % 100 == 0
             {
                 self.root_node.mutate();
                 println!("{:#?}", &self.root_node);

@@ -102,18 +102,29 @@ impl Mutatable for RidgedMultiFractalNoise {
 pub struct WorleyNoise(pub Worley);
 impl Generatable for WorleyNoise {
     fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self{
-        Self(Worley::new().enable_range(true).set_displacement(0.9).set_range_function(RangeFunction::Manhattan))
+        Self(
+            Worley::new()
+                .enable_range(rng.gen::<bool>())
+                .set_displacement(rng.gen::<f64>())
+                .set_range_function(match rng.gen::<u32>() % 5 {
+                    0 => RangeFunction::Euclidean,
+                    1 => RangeFunction::EuclideanSquared,
+                    2 => RangeFunction::Manhattan,
+                    3 => RangeFunction::Chebyshev,
+                    4 => RangeFunction::Quadratic,
+                    _ => panic!(),
+                }))
     }
 }
 impl Mutatable for WorleyNoise {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        match random::<i32>() % 5
+        match random::<u32>() % 5
         {
             0 => {self.0 = Worley::new();},
             1 => {self.0.enable_range(rng.gen::<bool>());},
             2 => {self.0.set_displacement(rng.gen::<f64>());},
             3 => {self.0.set_range_function(
-                    match rng.gen::<i32>() % 5 {
+                    match rng.gen::<u32>() % 5 {
                         0 => RangeFunction::Euclidean,
                         1 => RangeFunction::EuclideanSquared,
                         2 => RangeFunction::Manhattan,
