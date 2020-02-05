@@ -135,7 +135,7 @@ fn generatable_enum(
     let ident_s = ident.to_string();
 
     out.extend(quote! {
-        unreachable!("Failed to roll variant for {} in Generatable", #ident_s);
+        unreachable!("Failed to roll variant to generate for {}. Rolled {}, total weight is {}", #ident_s, roll, #total_weight);
     });
 
     Ok(out)
@@ -369,7 +369,7 @@ fn mutatable_fields(fields: &[&Field], path: &str, _span: Span) -> Result<TokenS
         .collect();
 
     out.extend(quote! {
-        unreachable!("Failed to roll field to mutate in {}", #path)
+        unreachable!("Failed to roll field to mutate in {}.eRolled {}, total weight is {}", #path, roll, #total_weight)
     });
 
     Ok(out)
