@@ -21,11 +21,13 @@ use crate::{
     colors::*,
     constants::*,
     datatypes::*,
+    noisedatatypes::*,
     nodes::*,
     updatestate::*,
     reseeders::{Reseed, Reseeder},
     rules::{generate_random_rule_set, mutate_rule_set, RuleSet},
 };
+use mutagen::Generatable;
 
 mod colors;
 mod constants;
@@ -34,6 +36,7 @@ mod nodes;
 mod reseeders;
 mod rules;
 mod updatestate;
+mod noisedatatypes;
 
 fn main() {
     // Make a Context.
@@ -149,62 +152,7 @@ impl MyGame {
             //     color_table: Array2::from_shape_fn((2, 2), |_| get_random_color()),
             // },
             root_node: Box::new(
-                FloatColorNodes::HSV{
-                        h: Box::new(
-                            UNFloatNodes::SquareSNFloat{
-                                child: Box::new(
-                                    SNFloatNodes::Sin{
-                                        child: Box::new(
-                                            AngleNodes::FromSNFloat{
-                                                child: Box::new(
-                                                    SNFloatNodes::Multiply {
-                                                        child_a: Box::new(
-                                                            SNFloatNodes::RidgedMultiNoise {
-                                                                noise: RidgedMulti::new(),
-                                                            }
-                                                        ),
-                                                        child_b: Box::new(
-                                                            SNFloatNodes::WorleyNoise {
-                                                                noise: Worley::new().enable_range(true).set_displacement(0.9).set_range_function(RangeFunction::Manhattan),
-                                                            }
-                                                        ),
-                                                    },
-                                                ),
-                                            },
-                                        ),
-                                    },
-                                ),
-                            },
-                        ),
-                        s: Box::new(
-                            // UNFloatNodes::FromSNFloat {
-                            //     child: Box::new(
-                            //         SNFloatNodes::OpenSimplexNoise {
-                            //             noise: OpenSimplex::new(),
-                            //         }
-                            //     ),
-                            // },
-                            // UNFloatNodes::FromSNFloat {
-                            //     child: Box::new(
-                            //         SNFloatNodes::Constant {
-                            //             value: SNFloat::new(1.0),
-                            //         }
-                            //     ),
-                            // },
-                            UNFloatNodes::ColorComponent {
-                                child: Box::new(FloatColorNodes::FromCellArray),
-                            }
-                        ),
-                        v: Box::new(
-                            UNFloatNodes::FromSNFloat {
-                                child: Box::new(
-                                    SNFloatNodes::OpenSimplexNoise {
-                                        noise: OpenSimplex::new(),
-                                    }
-                                ),
-                            }
-                        ),
-                }
+                FloatColorNodes::generate(),
                 // PalletteColorNodes::EqColor {
                 //     child_a: Box::new(PalletteColorNodes::FromUNFloat {
                 //         child: UNFloatNodes::FromSNFloat {
@@ -460,6 +408,11 @@ impl EventHandler for MyGame {
             //     active_cells: 0,
             //     similar_neighbours: 0,
             // };
+
+            if(random::<u32>() & 100 == 0)
+            {
+                self.root_node = Box::new(FloatColorNodes::generate());
+            }
 
             //Rotate the three buffers by swapping
             std::mem::swap(&mut self.cell_array, &mut self.old_cell_array);

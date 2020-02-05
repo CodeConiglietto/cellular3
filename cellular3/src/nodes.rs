@@ -2,15 +2,17 @@ use crate::{
     colors::*,
     constants::*,
     updatestate::*,
+    noisedatatypes::*,
     datatypes::{Angle, SNFloat, UNFloat},
 };
+use mutagen::Generatable;
 use ndarray::prelude::*;
 use noise::{
     BasicMulti, Billow, Checkerboard, Fbm, HybridMulti, NoiseFn, OpenSimplex, RangeFunction,
     RidgedMulti, SuperSimplex, Value, Worley,
 };
 use palette::{encoding::srgb::Srgb, rgb::Rgb, Hsv, RgbHue};
-use rand::prelude::*;
+//use rand::prelude::*;
 
 pub trait Node {
     type Output;
@@ -18,6 +20,7 @@ pub trait Node {
     fn compute(&self, state: UpdateState) -> Self::Output;
 }
 
+#[derive(Generatable)]
 pub enum FloatColorNodes {
     Grayscale {
         child: Box<UNFloatNodes>,
@@ -70,15 +73,16 @@ impl Node for FloatColorNodes {
     }
 }
 
+#[derive(Generatable)]
 pub enum PalletteColorNodes {
     //Red,
-    Modulus {
-        x_mod: usize,
-        y_mod: usize,
-        x_offset: usize,
-        y_offset: usize,
-        color_table: Array2<PalletteColor>,
-    },
+    // Modulus {
+    //     x_mod: usize,
+    //     y_mod: usize,
+    //     x_offset: usize,
+    //     y_offset: usize,
+    //     color_table: Array2<PalletteColor>,
+    // },
     FromUNFloat {
         child: UNFloatNodes,
     },
@@ -108,18 +112,18 @@ impl Node for PalletteColorNodes {
     fn compute(&self, state: UpdateState) -> Self::Output {
         match self {
             //ColorNodes::Red => PalletteColor::Red,
-            PalletteColorNodes::Modulus {
-                x_mod,
-                y_mod,
-                x_offset,
-                y_offset,
-                color_table,
-            } => {
-                let x_index = if (state.x + x_offset) % x_mod == 0 { 1 } else { 0 };
-                let y_index = if (state.y + y_offset) % y_mod == 0 { 1 } else { 0 };
+            // PalletteColorNodes::Modulus {
+            //     x_mod,
+            //     y_mod,
+            //     x_offset,
+            //     y_offset,
+            //     color_table,
+            // } => {
+            //     let x_index = if (state.x + x_offset) % x_mod == 0 { 1 } else { 0 };
+            //     let y_index = if (state.y + y_offset) % y_mod == 0 { 1 } else { 0 };
 
-                color_table[[x_index, y_index]]
-            }
+            //     color_table[[x_index, y_index]]
+            // }
             PalletteColorNodes::FromUNFloat { child } => PalletteColor::from_index(
                 (child.compute(state).into_inner() * (MAX_COLORS) as f32) as usize,
             ),
@@ -173,83 +177,86 @@ impl Node for PalletteColorNodes {
 
 // }
 
-pub enum FloatNodes {
-    Tan { child: Box<AngleNodes> },
-    Constant { value: f32 },
-}
+// #[derive(Generatable)]
+// pub enum FloatNodes {
+//     Tan { child: Box<AngleNodes> },
+//     Constant { value: f32 },
+// }
 
-impl Node for FloatNodes {
-    type Output = f32;
+// impl Node for FloatNodes {
+//     type Output = f32;
 
-    fn compute(&self, state: UpdateState) -> Self::Output {
-        use FloatNodes::*;
+//     fn compute(&self, state: UpdateState) -> Self::Output {
+//         use FloatNodes::*;
 
-        match self {
-            Tan { child } => f32::tan(child.compute(state).into_inner()),
-            Constant { value } => *value,
-        }
-    }
-}
+//         match self {
+//             Tan { child } => f32::tan(child.compute(state).into_inner()),
+//             Constant { value } => *value,
+//         }
+//     }
+// }
 
-pub enum AngleNodes {
-    ArcSin { theta: Box<SNFloatNodes> },
-    ArcCos { theta: Box<SNFloatNodes> },
-    ArcTan { theta: Box<FloatNodes> },
-    Random,
-    Constant { value: Angle },
-    FromSNFloat { child: Box<SNFloatNodes> },
-    FromUNFloat { child: Box<UNFloatNodes> },
-}
+// #[derive(Generatable)]
+// pub enum AngleNodes {
+//     ArcSin { theta: Box<SNFloatNodes> },
+//     ArcCos { theta: Box<SNFloatNodes> },
+//     //ArcTan { theta: Box<FloatNodes> },
+//     Random,
+//     Constant { value: Angle },
+//     FromSNFloat { child: Box<SNFloatNodes> },
+//     FromUNFloat { child: Box<UNFloatNodes> },
+// }
 
-impl Node for AngleNodes {
-    type Output = Angle;
+// impl Node for AngleNodes {
+//     type Output = Angle;
 
-    fn compute(&self, state: UpdateState) -> Self::Output {
-        use AngleNodes::*;
+//     fn compute(&self, state: UpdateState) -> Self::Output {
+//         use AngleNodes::*;
 
-        match self {
-            ArcSin { theta } => Angle::new(f32::asin(theta.compute(state).into_inner())),
-            ArcCos { theta } => Angle::new(f32::acos(theta.compute(state).into_inner())),
-            ArcTan { theta } => Angle::new(f32::atan(theta.compute(state))),
-            Random => Angle::random(),
-            Constant { value } => *value,
-            FromSNFloat { child } => child.compute(state).to_angle(),
-            FromUNFloat { child } => child.compute(state).to_angle(),
-        }
-    }
-}
+//         match self {
+//             ArcSin { theta } => Angle::new(f32::asin(theta.compute(state).into_inner())),
+//             ArcCos { theta } => Angle::new(f32::acos(theta.compute(state).into_inner())),
+//             //ArcTan { theta } => Angle::new(f32::atan(theta.compute(state))),
+//             Random => Angle::random(),
+//             Constant { value } => *value,
+//             FromSNFloat { child } => child.compute(state).to_angle(),
+//             FromUNFloat { child } => child.compute(state).to_angle(),
+//         }
+//     }
+// }
 
+#[derive(Generatable)]
 pub enum SNFloatNodes {
-    Sin {
-        child: Box<AngleNodes>,
-    },
-    Cos {
-        child: Box<AngleNodes>,
-    },
+    // Sin {
+    //     child: Box<AngleNodes>,
+    // },
+    // Cos {
+    //     child: Box<AngleNodes>,
+    // },
     Random,
     Constant {
         value: SNFloat,
     },
-    FromAngle {
-        child: Box<AngleNodes>,
-    },
+    // FromAngle {
+    //     child: Box<AngleNodes>,
+    // },
     FromUNFloat {
         child: Box<UNFloatNodes>,
     },
     FbmNoise {
-        noise: Fbm,
+        noise: FractalBrownianNoise,
     },
     OpenSimplexNoise {
-        noise: OpenSimplex,
+        noise: OpenSimplexNoise,
     },
     WorleyNoise {
-        noise: Worley,
+        noise: WorleyNoise,
     },
-    ValueNoise {
-        noise: Value,
-    },
+    // ValueNoise {
+    //     noise: ValueNoise,
+    // },
     RidgedMultiNoise {
-        noise: RidgedMulti,
+        noise: RidgedMultiFractalNoise,
     },
     Multiply {
         child_a: Box<SNFloatNodes>,
@@ -267,28 +274,28 @@ impl Node for SNFloatNodes {
         use SNFloatNodes::*;
 
         match self {
-            Sin { child } => SNFloat::new(f32::sin(child.compute(state).into_inner())),
-            Cos { child } => SNFloat::new(f32::cos(child.compute(state).into_inner())),
+            // Sin { child } => SNFloat::new(f32::sin(child.compute(state).into_inner())),
+            // Cos { child } => SNFloat::new(f32::cos(child.compute(state).into_inner())),
             Random => SNFloat::random(),
-            FromAngle { child } => child.compute(state).to_signed(),
+            // FromAngle { child } => child.compute(state).to_signed(),
             FromUNFloat { child } => child.compute(state).to_signed(),
             Constant { value } => *value,
             OpenSimplexNoise { noise } => {
-                SNFloat::new(noise.get([state.x as f64 * 0.025, state.y as f64 * 0.025, state.t as f64 * 0.05]) as f32)
+                SNFloat::new(noise.0.get([state.x as f64 * 0.025, state.y as f64 * 0.025, state.t as f64 * 0.05]) as f32)
             }
             FbmNoise { noise } => {
-                SNFloat::new(noise.get([state.x as f64 * 0.01, state.y as f64 * 0.01, state.t as f64 * 0.05]) as f32)
+                SNFloat::new(noise.0.get([state.x as f64 * 0.01, state.y as f64 * 0.01, state.t as f64 * 0.05]) as f32)
             }
             WorleyNoise { noise } => SNFloat::new(
-                -1.0 * noise
+                -1.0 * noise.0
                     .get([state.x as f64 * 0.025, state.y as f64 * 0.025, state.t as f64 * 0.05])
                     .min(0.99) as f32,
             ),
             //Todo scale
-            ValueNoise { noise } => SNFloat::new(noise.get([state.x as f64, state.y as f64 as f64, state.t as f64]) as f32),
+            //ValueNoise { noise } => SNFloat::new(noise.0.get([state.x as f64, state.y as f64 as f64, state.t as f64]) as f32),
             RidgedMultiNoise { noise } => SNFloat::new(
                 noise
-                    .get([state.x as f64 * 0.01, state.y as f64 * 0.01, state.t as f64 * 0.05])
+                    .0.get([state.x as f64 * 0.01, state.y as f64 * 0.01, state.t as f64 * 0.05])
                     .min(0.99) as f32,
             ),
             Multiply { child_a, child_b } => SNFloat::new(
@@ -299,14 +306,15 @@ impl Node for SNFloatNodes {
     }
 }
 
+#[derive(Generatable)]
 pub enum UNFloatNodes {
     Random,
     Constant {
         value: UNFloat,
     },
-    FromAngle {
-        child: Box<AngleNodes>,
-    },
+    // FromAngle {
+    //     child: Box<AngleNodes>,
+    // },
     FromSNFloat {
         child: Box<SNFloatNodes>,
     },
@@ -340,7 +348,7 @@ impl Node for UNFloatNodes {
         match self {
             Random => UNFloat::random(),
             Constant { value } => *value,
-            FromAngle { child } => child.compute(state).to_unsigned(),
+            // FromAngle { child } => child.compute(state).to_unsigned(),
             FromSNFloat { child } => child.compute(state).to_unsigned(),
             AbsSNFloat { child } => UNFloat::new(child.compute(state).into_inner().abs()),
             SquareSNFloat { child } => UNFloat::new(child.compute(state).into_inner().powf(2.0)),
