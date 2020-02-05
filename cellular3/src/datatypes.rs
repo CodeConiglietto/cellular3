@@ -1,5 +1,5 @@
-use std::f32::consts::PI;
 use mutagen::{Generatable, Mutatable};
+use std::f32::consts::PI;
 
 use rand::prelude::*;
 
@@ -24,10 +24,6 @@ impl UNFloat {
         Self::new_unchecked(map_range(value, (min, max), (0.0, 1.0)))
     }
 
-    pub fn random() -> Self {
-        Self::new_unchecked(thread_rng().gen_range(0.0, 1.0))
-    }
-
     pub fn into_inner(self) -> f32 {
         self.value
     }
@@ -42,14 +38,14 @@ impl UNFloat {
 }
 
 impl Generatable for UNFloat {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self{
-        UNFloat::new(rng.gen::<f32>())
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        Self::new_unchecked(thread_rng().gen_range(0.0, 1.0))
     }
 }
 
 impl Mutatable for UNFloat {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        self.value = rng.gen::<f32>();
+        *self = Self::generate();
     }
 }
 
@@ -74,10 +70,6 @@ impl SNFloat {
         Self::new_unchecked(map_range(value, (min, max), (-1.0, 1.0)))
     }
 
-    pub fn random() -> Self {
-        Self::new_unchecked(thread_rng().gen_range(-1.0, 1.0))
-    }
-
     pub fn into_inner(self) -> f32 {
         self.value
     }
@@ -92,14 +84,14 @@ impl SNFloat {
 }
 
 impl Generatable for SNFloat {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self{
-        SNFloat::new(rng.gen::<f32>() * 2.0 - 1.0)
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        Self::new_unchecked(thread_rng().gen_range(-1.0, 1.0))
     }
 }
 
 impl Mutatable for SNFloat {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        self.value = rng.gen::<f32>() * 2.0 - 1.0;
+        *self = Self::generate_rng(rng);
     }
 }
 
@@ -114,20 +106,20 @@ impl Angle {
     }
 
     pub fn new(value: f32) -> Self {
-        let normalised = value - 2.0 * PI * (value / 2.0 * PI).floor();
+        let normalised = value - 2.0 * PI * (value / (2.0 * PI)).floor();
 
-        debug_assert!(normalised >= 0.0);
-        debug_assert!(normalised < 2.0 * PI);
+        debug_assert!(
+            normalised >= 0.0 && normalised < 2.0 * PI,
+            "Failed to normalize angle: {} -> {}",
+            value,
+            normalised,
+        );
 
         Self::new_unchecked(normalised)
     }
 
     pub fn new_from_range(value: f32, min: f32, max: f32) -> Self {
         Self::new_unchecked(map_range(value, (min, max), (0.0, 2.0 * PI)))
-    }
-
-    pub fn random() -> Self {
-        Self::new_unchecked(thread_rng().gen_range(0.0, 2.0 * PI))
     }
 
     pub fn into_inner(self) -> f32 {
@@ -144,14 +136,14 @@ impl Angle {
 }
 
 impl Generatable for Angle {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self{
-        Angle::new(rng.gen::<f32>() * 2.0 * PI - PI)
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        Angle::new_unchecked(rng.gen_range(0.0, 2.0 * PI))
     }
 }
 
 impl Mutatable for Angle {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        self.value = rng.gen::<f32>() * 2.0 * PI - PI;
+        *self = Self::generate_rng(rng);
     }
 }
 
@@ -160,9 +152,24 @@ fn map_range(value: f32, from: (f32, f32), to: (f32, f32)) -> f32 {
     let (from_min, from_max) = from;
     let (to_min, to_max) = to;
 
-    assert!(from_min < from_max, "from_min: {}, from_max: {}", from_min, from_max);
-    assert!(from_min <= value, "from_min: {}, value: {}", from_min, value);
-    assert!(value <= from_max, "value: {}, from_max: {}", value, from_max);
+    assert!(
+        from_min < from_max,
+        "from_min: {}, from_max: {}",
+        from_min,
+        from_max
+    );
+    assert!(
+        from_min <= value,
+        "from_min: {}, value: {}",
+        from_min,
+        value
+    );
+    assert!(
+        value <= from_max,
+        "value: {}, from_max: {}",
+        value,
+        from_max
+    );
     assert!(to_min < to_max, "to_min: {}, to_max: {}", to_min, to_max);
 
     let out = ((value - from_min) / (from_max - from_min)) * (to_max - to_min) + to_min;
@@ -171,4 +178,16 @@ fn map_range(value: f32, from: (f32, f32), to: (f32, f32)) -> f32 {
     debug_assert!(out <= to_max);
 
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_angles() {
+        for i in 0..100_000 {
+            Angle::new(i as f32);
+        }
+    }
 }
