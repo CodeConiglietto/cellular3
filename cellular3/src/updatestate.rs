@@ -1,5 +1,5 @@
-use ndarray::prelude::*;
 use crate::colors::*;
+use ndarray::prelude::*;
 
 #[derive(Clone, Copy, Debug)]
 pub struct UpdateState<'a> {

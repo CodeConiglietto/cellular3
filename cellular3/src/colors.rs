@@ -26,6 +26,19 @@ impl From<IntColor> for FloatColor {
     }
 }
 
+impl From<PalletteColor> for FloatColor {
+    fn from(c: PalletteColor) -> FloatColor {
+        let color_components = c.to_components();
+
+        FloatColor {
+            r: if color_components[0] { 1.0 } else { 0.0 },
+            g: if color_components[1] { 1.0 } else { 0.0 },
+            b: if color_components[2] { 1.0 } else { 0.0 },
+            a: 1.0,
+        }
+    }
+}
+
 pub fn float_color_from_pallette_rgb(rgb: Rgb) -> FloatColor {
     FloatColor {
         r: rgb.red as f32,

@@ -1,14 +1,14 @@
+use mutagen::{Generatable, Mutatable};
 use noise::{
     BasicMulti, Billow, Checkerboard, Fbm, HybridMulti, OpenSimplex, RangeFunction, RidgedMulti,
     SuperSimplex, Value, Worley,
 };
-use mutagen::{Generatable, Mutatable};
 use rand::prelude::*;
 
 #[derive(Clone, Debug)]
 pub struct BasicMultiFractalNoise(pub BasicMulti);
 impl Generatable for BasicMultiFractalNoise {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self{
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
         Self(BasicMulti::new())
     }
 }
@@ -35,7 +35,7 @@ impl Mutatable for BasicMultiFractalNoise {
 #[derive(Clone, Debug)]
 pub struct FractalBrownianNoise(pub Fbm);
 impl Generatable for FractalBrownianNoise {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self{
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
         Self(Fbm::new())
     }
 }
@@ -61,7 +61,7 @@ impl Mutatable for FractalBrownianNoise {
 #[derive(Clone, Debug)]
 pub struct OpenSimplexNoise(pub OpenSimplex);
 impl Generatable for OpenSimplexNoise {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self{
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
         Self(OpenSimplex::new())
     }
 }
@@ -74,7 +74,7 @@ impl Mutatable for OpenSimplexNoise {
 #[derive(Clone, Debug)]
 pub struct RidgedMultiFractalNoise(pub RidgedMulti);
 impl Generatable for RidgedMultiFractalNoise {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self{
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
         Self(RidgedMulti::new())
     }
 }
@@ -101,7 +101,7 @@ impl Mutatable for RidgedMultiFractalNoise {
 #[derive(Clone, Debug)]
 pub struct WorleyNoise(pub Worley);
 impl Generatable for WorleyNoise {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self{
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
         Self(
             Worley::new()
                 .enable_range(rng.gen::<bool>())
@@ -113,27 +113,35 @@ impl Generatable for WorleyNoise {
                     3 => RangeFunction::Chebyshev,
                     4 => RangeFunction::Quadratic,
                     _ => panic!(),
-                }))
+                }),
+        )
     }
 }
 impl Mutatable for WorleyNoise {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        match random::<u32>() % 5
-        {
-            0 => {self.0 = Worley::new();},
-            1 => {self.0.enable_range(rng.gen::<bool>());},
-            2 => {self.0.set_displacement(rng.gen::<f64>());},
-            3 => {self.0.set_range_function(
-                    match rng.gen::<u32>() % 5 {
-                        0 => RangeFunction::Euclidean,
-                        1 => RangeFunction::EuclideanSquared,
-                        2 => RangeFunction::Manhattan,
-                        3 => RangeFunction::Chebyshev,
-                        4 => RangeFunction::Quadratic,
-                        _ => panic!(),
-                    }
-                );},
-            4 => {self.0.set_frequency(rng.gen::<f64>());},
+        match random::<u32>() % 5 {
+            0 => {
+                self.0 = Worley::new();
+            }
+            1 => {
+                self.0.enable_range(rng.gen::<bool>());
+            }
+            2 => {
+                self.0.set_displacement(rng.gen::<f64>());
+            }
+            3 => {
+                self.0.set_range_function(match rng.gen::<u32>() % 5 {
+                    0 => RangeFunction::Euclidean,
+                    1 => RangeFunction::EuclideanSquared,
+                    2 => RangeFunction::Manhattan,
+                    3 => RangeFunction::Chebyshev,
+                    4 => RangeFunction::Quadratic,
+                    _ => panic!(),
+                });
+            }
+            4 => {
+                self.0.set_frequency(rng.gen::<f64>());
+            }
             _ => panic!(),
         };
     }

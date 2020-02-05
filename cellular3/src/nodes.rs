@@ -1,7 +1,7 @@
 use crate::{
     colors::*,
     constants::*,
-    datatypes::{Angle, SNFloat, UNFloat},
+    datatypes::{Angle, Boolean, SNFloat, UNFloat},
     noisedatatypes::*,
     updatestate::*,
 };
@@ -36,8 +36,11 @@ pub enum FloatColorNodes {
         s: Box<UNFloatNodes>,
         v: Box<UNFloatNodes>,
     },
-    #[mutagen(mut_reroll = 0.5)]
+    #[mutagen(mut_reroll = 0.75)]
     FromCellArray,
+    FromPalletteColor {
+        child: Box<PalletteColorNodes>,
+    },
 }
 
 impl Node for FloatColorNodes {
@@ -71,6 +74,7 @@ impl Node for FloatColorNodes {
                 float_color_from_pallette_rgb(rgb)
             }
             FloatColorNodes::FromCellArray => state.cell_array[[state.x, state.y]],
+            FloatColorNodes::FromPalletteColor { child } => FloatColor::from(child.compute(state)),
         }
     }
 }
@@ -89,24 +93,31 @@ pub enum PalletteColorNodes {
     FromUNFloat {
         child: Box<UNFloatNodes>,
     },
+    #[mutagen(gen_weight = 0.1)]
     GiveColor {
         child_a: Box<PalletteColorNodes>,
         child_b: Box<PalletteColorNodes>,
     },
+    #[mutagen(gen_weight = 0.1)]
     TakeColor {
         child_a: Box<PalletteColorNodes>,
         child_b: Box<PalletteColorNodes>,
     },
+    #[mutagen(gen_weight = 0.1)]
     XorColor {
         child_a: Box<PalletteColorNodes>,
         child_b: Box<PalletteColorNodes>,
     },
+    #[mutagen(gen_weight = 0.1)]
     EqColor {
         child_a: Box<PalletteColorNodes>,
         child_b: Box<PalletteColorNodes>,
-    }, // DecomposeToComponents{
-       //     //r:
-       // }
+    },
+    FromComponents {
+        r: Box<BooleanNodes>,
+        g: Box<BooleanNodes>,
+        b: Box<BooleanNodes>,
+    },
 }
 
 impl Node for PalletteColorNodes {
@@ -128,7 +139,7 @@ impl Node for PalletteColorNodes {
             //     color_table[[x_index, y_index]]
             // }
             PalletteColorNodes::FromUNFloat { child } => PalletteColor::from_index(
-                (child.compute(state).into_inner() * (MAX_COLORS) as f32) as usize,
+                (child.compute(state).into_inner() * 0.99 * (MAX_COLORS) as f32) as usize,
             ),
             PalletteColorNodes::GiveColor { child_a, child_b } => PalletteColor::from_components(
                 child_a.compute(state).give_color(child_b.compute(state)),
@@ -141,7 +152,13 @@ impl Node for PalletteColorNodes {
             ),
             PalletteColorNodes::EqColor { child_a, child_b } => PalletteColor::from_components(
                 child_a.compute(state).eq_color(child_b.compute(state)),
-            ), // PalletteColorNodes::SimplexNoise { noise } => {
+            ),
+            PalletteColorNodes::FromComponents { r, g, b } => 
+                PalletteColor::from_components(
+                    [r.compute(state).into_inner(), 
+                    g.compute(state).into_inner(), 
+                    b.compute(state).into_inner()]),
+            // PalletteColorNodes::SimplexNoise { noise } => {
                //     let noise_value =
                //         (noise.get([x as f64 * 0.025, y as f64 * 0.025, t as f64 * 0.1])) + 0.5;
                //     PalletteColor::from_index((noise_value * (MAX_COLORS - 1) as f64) as usize)
@@ -195,51 +212,50 @@ impl Node for PalletteColorNodes {
 //     }
 // }
 
-// #[derive(Generatable, Debug)]
-// pub enum AngleNodes {
-//     ArcSin { theta: Box<SNFloatNodes> },
-//     ArcCos { theta: Box<SNFloatNodes> },
-//     //ArcTan { theta: Box<FloatNodes> },
-//     Random,
-//     Constant { value: Angle },
-//     FromSNFloat { child: Box<SNFloatNodes> },
-//     FromUNFloat { child: Box<UNFloatNodes> },
-// }
+#[derive(Generatable, Mutatable, Debug)]
+#[mutagen(mut_reroll = 0.25)]
+pub enum AngleNodes {
+    ArcSin { theta: Box<SNFloatNodes> },
+    ArcCos { theta: Box<SNFloatNodes> },
+    Random,
+    Constant { value: Angle },
+    FromSNFloat { child: Box<SNFloatNodes> },
+    FromUNFloat { child: Box<UNFloatNodes> },
+}
 
-// impl Node for AngleNodes {
-//     type Output = Angle;
+impl Node for AngleNodes {
+    type Output = Angle;
 
-//     fn compute(&self, state: UpdateState) -> Self::Output {
-//         use AngleNodes::*;
+    fn compute(&self, state: UpdateState) -> Self::Output {
+        use AngleNodes::*;
 
-//         match self {
-//             ArcSin { theta } => Angle::new(f32::asin(theta.compute(state).into_inner())),
-//             ArcCos { theta } => Angle::new(f32::acos(theta.compute(state).into_inner())),
-//             //ArcTan { theta } => Angle::new(f32::atan(theta.compute(state))),
-//             Random => Angle::generate(),
-//             Constant { value } => *value,
-//             FromSNFloat { child } => child.compute(state).to_angle(),
-//             FromUNFloat { child } => child.compute(state).to_angle(),
-//         }
-//     }
-// }
+        match self {
+            ArcSin { theta } => Angle::new(f32::asin(theta.compute(state).into_inner())),
+            ArcCos { theta } => Angle::new(f32::acos(theta.compute(state).into_inner())),
+            Random => Angle::generate(),
+            Constant { value } => *value,
+            FromSNFloat { child } => child.compute(state).to_angle(),
+            FromUNFloat { child } => child.compute(state).to_angle(),
+        }
+    }
+}
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.25)]
 pub enum SNFloatNodes {
-    // Sin {
-    //     child: Box<AngleNodes>,
-    // },
-    // Cos {
-    //     child: Box<AngleNodes>,
-    // },
+    Sin {
+        child: Box<AngleNodes>,
+    },
+    Cos {
+        child: Box<AngleNodes>,
+    },
     Random,
     Constant {
         value: SNFloat,
     },
-    // FromAngle {
-    //     child: Box<AngleNodes>,
-    // },
+    FromAngle {
+        child: Box<AngleNodes>,
+    },
     FromUNFloat {
         child: Box<UNFloatNodes>,
     },
@@ -274,10 +290,10 @@ impl Node for SNFloatNodes {
         use SNFloatNodes::*;
 
         match self {
-            // Sin { child } => SNFloat::new(f32::sin(child.compute(state).into_inner())),
-            // Cos { child } => SNFloat::new(f32::cos(child.compute(state).into_inner())),
+            Sin { child } => SNFloat::new(f32::sin(child.compute(state).into_inner())),
+            Cos { child } => SNFloat::new(f32::cos(child.compute(state).into_inner())),
             Random => SNFloat::generate(),
-            // FromAngle { child } => child.compute(state).to_signed(),
+            FromAngle { child } => child.compute(state).to_signed(),
             FromUNFloat { child } => child.compute(state).to_signed(),
             Constant { value } => *value,
             OpenSimplexNoise { noise } => SNFloat::new(noise.0.get([
@@ -323,13 +339,13 @@ impl Node for SNFloatNodes {
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.25)]
 pub enum UNFloatNodes {
-    Random,
+    //Random,
     Constant {
         value: UNFloat,
     },
-    // FromAngle {
-    //     child: Box<AngleNodes>,
-    // },
+    FromAngle {
+        child: Box<AngleNodes>,
+    },
     FromSNFloat {
         child: Box<SNFloatNodes>,
     },
@@ -361,9 +377,9 @@ impl Node for UNFloatNodes {
         use UNFloatNodes::*;
 
         match self {
-            Random => UNFloat::generate(),
+            //Random => UNFloat::generate(),
             Constant { value } => *value,
-            // FromAngle { child } => child.compute(state).to_unsigned(),
+            FromAngle { child } => child.compute(state).to_unsigned(),
             FromSNFloat { child } => child.compute(state).to_unsigned(),
             AbsSNFloat { child } => UNFloat::new(child.compute(state).into_inner().abs()),
             SquareSNFloat { child } => UNFloat::new(child.compute(state).into_inner().powf(2.0)),
@@ -394,10 +410,60 @@ impl Node for UNFloatNodes {
 //     ShiftBy,
 // }
 
-// pub enum BooleanNodes {
-//     And {a: bool, b: bool},
-//     Or {a: bool, b: bool},
-//     Xor {a: bool, b: bool},
-//     Not {a: bool},
-//     Random,
-// }
+#[derive(Generatable, Mutatable, Debug)]
+#[mutagen(mut_reroll = 0.25)]
+pub enum BooleanNodes {
+    UNFloatLess {
+        child_a: Box<UNFloatNodes>,
+        child_b: Box<UNFloatNodes>,
+    },
+    UNFloatMore {
+        child_a: Box<UNFloatNodes>,
+        child_b: Box<UNFloatNodes>,
+    },
+    And {
+        child_a: Box<BooleanNodes>,
+        child_b: Box<BooleanNodes>,
+    },
+    Or {
+        child_a: Box<BooleanNodes>,
+        child_b: Box<BooleanNodes>,
+    },
+    //Xor {child_a: Boolean, child_b: Boolean},
+    Not {
+        child: Box<BooleanNodes>,
+    },
+    Constant {
+        child: Boolean,
+    },
+    Random,
+}
+
+impl Node for BooleanNodes {
+    type Output = Boolean;
+
+    fn compute(&self, state: UpdateState) -> Self::Output {
+        use BooleanNodes::*;
+
+        match self {
+            UNFloatLess { child_a, child_b } => Boolean {
+                value: child_a.compute(state).into_inner() < child_b.compute(state).into_inner(),
+            },
+            UNFloatMore { child_a, child_b } => Boolean {
+                value: child_a.compute(state).into_inner() > child_b.compute(state).into_inner(),
+            },
+            And { child_a, child_b } => Boolean {
+                value: child_a.compute(state).into_inner() && child_b.compute(state).into_inner(),
+            },
+            Or { child_a, child_b } => Boolean {
+                value: child_a.compute(state).into_inner() || child_b.compute(state).into_inner(),
+            },
+            //Xor {child_a: bool, child_b: bool},
+            Not { child } => Boolean {
+                value: !child.compute(state).into_inner(),
+            },
+            Constant {child} => *child,
+            Random => Boolean::generate(),
+        }
+    }
+}

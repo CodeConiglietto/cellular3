@@ -21,11 +21,11 @@ use crate::{
     colors::*,
     constants::*,
     datatypes::*,
-    noisedatatypes::*,
     nodes::*,
-    updatestate::*,
+    noisedatatypes::*,
     reseeders::{Reseed, Reseeder},
     rules::{generate_random_rule_set, mutate_rule_set, RuleSet},
+    updatestate::*,
 };
 use mutagen::{Generatable, Mutatable};
 
@@ -33,10 +33,10 @@ mod colors;
 mod constants;
 mod datatypes;
 mod nodes;
+mod noisedatatypes;
 mod reseeders;
 mod rules;
 mod updatestate;
-mod noisedatatypes;
 
 fn main() {
     // Make a Context.
@@ -339,7 +339,12 @@ impl EventHandler for MyGame {
                 // let neighbour_result =
                 //     get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
 
-                let new_color = root_node.compute(UpdateState{x: x, y: y + slice_y as usize, t: current_sync_tic, cell_array: cell_array_view}); //get_next_color(rule_sets, *current, neighbour_result.0);
+                let new_color = root_node.compute(UpdateState {
+                    x: x,
+                    y: y + slice_y as usize,
+                    t: current_sync_tic,
+                    cell_array: cell_array_view,
+                }); //get_next_color(rule_sets, *current, neighbour_result.0);
 
                 let older_color = *new;
                 *new = new_color;
@@ -409,8 +414,7 @@ impl EventHandler for MyGame {
             //     similar_neighbours: 0,
             // };
 
-            if random::<u32>() % 100 == 0
-            {
+            if random::<u32>() % 20 == 0 {
                 self.root_node.mutate();
                 println!("{:#?}", &self.root_node);
             }
