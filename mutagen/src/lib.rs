@@ -10,9 +10,8 @@
 //!
 //! When derived on a struct, it will pick a field at random
 //!
-//! When derived on an enum, it requires [Generatable] to also be implemented.
-//! It will then choose whether to re-roll a new variant (by default with probability 0.5),
-//! or to mutate its current variant.
+//! When derived on an enum, it requires [Generatable] to also be implemented for all fields, unless mut_reroll is 0.
+//! It will then choose whether to re-roll a new variant with probability mut_reroll, or to mutate its current variant.
 //!
 //! # Attributes
 //!
@@ -23,7 +22,7 @@
 //! ```rust
 //! use mutagen::{Generatable, Mutatable};
 //!
-//! #[derive(Generatable)]
+//! #[derive(Generatable, Mutatable)]
 //! #[mutagen(mut_reroll = 0.78)]
 //! enum Foo {
 //!   // Bar is 10 times as likely as Baz or Bax,
@@ -35,16 +34,35 @@
 //!   #[mutagen(mut_reroll = 0.0)]
 //!   Baz(Baz),
 //!
-//!   // All other variants have reroll probability of 0.78, as specified by Foo
+//!   // All other variants have reroll probability of 0.78, as specified on Foo
 //!   Bax {
 //!      // a mutates twice as often as b
 //!      #[mutagen(mut_weight = 0.5)]
 //!      a: Baz,
 //!      b: Baz,
 //!   },
+//!
+//!   // This variant will never generate, so its fields don't need to implement Generatable
+//!   #[mutagen(gen_weight = 0.0)]
+//!   Boo(NotGeneratable),
 //! }
 //!
+//! #[derive(Mutatable)]
+//! struct Boz {
+//!   // frob will never mutate, so it doesn't need to implement Mutatable
+//!   #[mutagen(mut_weight = 0.0)]
+//!   not_mutatable: NotMutatable,
+//!
+//!   mutatable: Baz,
+//! }
+//!
+//! #[derive(Mutatable)]
+//! struct NotGeneratable;
+//!
 //! #[derive(Generatable)]
+//! struct NotMutatable;
+//!
+//! #[derive(Generatable, Mutatable)]
 //! struct Baz;
 //! ```
 //!
@@ -53,10 +71,16 @@
 //! When applied to an enum variant, it affects how often that variant is generated.
 //! By default, all variants have weight 1.
 //!
+//! Note that when an enum variant has a weight of 0, it will never be generated, so the derived impl
+//! will not expect its fields to implement Generatable.
+//!
 //! **`#[mutagen(mut_weight = 1.0)]`**
 //!
 //! When applied to a struct field, it affects how often that field is mutated.
 //! By default, all fields have weight 1.
+//!
+//! Note that when a field has a weight of 0, it will never be mutated, so the derived impl
+//! will not expect its fields to implement Mutatable.
 //!
 //! **`#[mutagen(mut_reroll = 0.5)]`**
 //!
@@ -70,12 +94,9 @@ pub use rand;
 #[doc(hidden)]
 pub use mutagen_derive::*;
 
-use std::{rc::Rc, sync::Arc};
+use std::{ops::DerefMut, rc::Rc, sync::Arc};
 
-use rand::{
-    distributions::{Distribution, Standard},
-    Rng,
-};
+use rand::Rng;
 
 /// A trait denoting that the type may be randomly generated
 ///
@@ -128,35 +149,42 @@ impl Generatable for () {
 /// ## Attributes
 ///
 pub trait Mutatable {
-    fn mutate(&mut self);
+    fn mutate(&mut self) {
+        self.mutate_rng(&mut rand::thread_rng())
+    }
+
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R);
 }
 
-impl<T> Mutatable for T
-where
-    Standard: Distribution<T>,
-{
-    fn mutate(&mut self) {}
+impl<T: Mutatable> Mutatable for Box<T> {
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
+        self.deref_mut().mutate_rng(rng)
+    }
+}
+
+impl Mutatable for () {
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, _rng: &mut R) {}
 }
 
 /*
 #[cfg(test)]
 mod test {
-    use super::*;
-
-    #[derive(Generatable)]
+    #[derive(Generatable, Mutatable)]
     struct Foo {
+        #[mutagen(mut_weight = 10.0)]
         bar: Bar,
         baz: Baz,
         bax: Bax,
         bap: Bap,
     }
 
-    #[derive(Generatable)]
+    #[derive(Generatable, Mutatable)]
     struct Bar;
 
-    #[derive(Generatable)]
+    #[derive(Generatable, Mutatable)]
+    #[mutagen(mut_reroll = 0.123)]
     enum Baz {
-        #[mutagen(gen_weight = 10.0)]
+        #[mutagen(gen_weight = 10.0, mut_reroll = 1.0)]
         Boz,
         Bop(Bar),
         Bof(Bar, Bar),
@@ -165,10 +193,10 @@ mod test {
         },
     }
 
-    #[derive(Generatable)]
+    #[derive(Generatable, Mutatable)]
     struct Bax(Bar);
 
-    #[derive(Generatable)]
+    #[derive(Generatable, Mutatable)]
     struct Bap(Bar, Bar);
 }
 */
