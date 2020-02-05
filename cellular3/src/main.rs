@@ -409,6 +409,11 @@ impl EventHandler for MyGame {
             //     similar_neighbours: 0,
             // };
 
+            if(random::<u32>() & 100 == 0)
+            {
+                self.root_node = Box::new(FloatColorNodes::generate());
+            }
+
             //Rotate the three buffers by swapping
             std::mem::swap(&mut self.cell_array, &mut self.old_cell_array);
             std::mem::swap(&mut self.cell_array, &mut self.new_cell_array);

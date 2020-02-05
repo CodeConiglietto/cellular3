@@ -196,50 +196,50 @@ impl Node for PalletteColorNodes {
 //     }
 // }
 
-#[derive(Generatable)]
-pub enum AngleNodes {
-    ArcSin { theta: Box<SNFloatNodes> },
-    ArcCos { theta: Box<SNFloatNodes> },
-    //ArcTan { theta: Box<FloatNodes> },
-    Random,
-    Constant { value: Angle },
-    FromSNFloat { child: Box<SNFloatNodes> },
-    FromUNFloat { child: Box<UNFloatNodes> },
-}
+// #[derive(Generatable)]
+// pub enum AngleNodes {
+//     ArcSin { theta: Box<SNFloatNodes> },
+//     ArcCos { theta: Box<SNFloatNodes> },
+//     //ArcTan { theta: Box<FloatNodes> },
+//     Random,
+//     Constant { value: Angle },
+//     FromSNFloat { child: Box<SNFloatNodes> },
+//     FromUNFloat { child: Box<UNFloatNodes> },
+// }
 
-impl Node for AngleNodes {
-    type Output = Angle;
+// impl Node for AngleNodes {
+//     type Output = Angle;
 
-    fn compute(&self, state: UpdateState) -> Self::Output {
-        use AngleNodes::*;
+//     fn compute(&self, state: UpdateState) -> Self::Output {
+//         use AngleNodes::*;
 
-        match self {
-            ArcSin { theta } => Angle::new(f32::asin(theta.compute(state).into_inner())),
-            ArcCos { theta } => Angle::new(f32::acos(theta.compute(state).into_inner())),
-            //ArcTan { theta } => Angle::new(f32::atan(theta.compute(state))),
-            Random => Angle::random(),
-            Constant { value } => *value,
-            FromSNFloat { child } => child.compute(state).to_angle(),
-            FromUNFloat { child } => child.compute(state).to_angle(),
-        }
-    }
-}
+//         match self {
+//             ArcSin { theta } => Angle::new(f32::asin(theta.compute(state).into_inner())),
+//             ArcCos { theta } => Angle::new(f32::acos(theta.compute(state).into_inner())),
+//             //ArcTan { theta } => Angle::new(f32::atan(theta.compute(state))),
+//             Random => Angle::random(),
+//             Constant { value } => *value,
+//             FromSNFloat { child } => child.compute(state).to_angle(),
+//             FromUNFloat { child } => child.compute(state).to_angle(),
+//         }
+//     }
+// }
 
 #[derive(Generatable)]
 pub enum SNFloatNodes {
-    Sin {
-        child: Box<AngleNodes>,
-    },
-    Cos {
-        child: Box<AngleNodes>,
-    },
+    // Sin {
+    //     child: Box<AngleNodes>,
+    // },
+    // Cos {
+    //     child: Box<AngleNodes>,
+    // },
     Random,
     Constant {
         value: SNFloat,
     },
-    FromAngle {
-        child: Box<AngleNodes>,
-    },
+    // FromAngle {
+    //     child: Box<AngleNodes>,
+    // },
     FromUNFloat {
         child: Box<UNFloatNodes>,
     },
@@ -274,10 +274,10 @@ impl Node for SNFloatNodes {
         use SNFloatNodes::*;
 
         match self {
-            Sin { child } => SNFloat::new(f32::sin(child.compute(state).into_inner())),
-            Cos { child } => SNFloat::new(f32::cos(child.compute(state).into_inner())),
+            // Sin { child } => SNFloat::new(f32::sin(child.compute(state).into_inner())),
+            // Cos { child } => SNFloat::new(f32::cos(child.compute(state).into_inner())),
             Random => SNFloat::random(),
-            FromAngle { child } => child.compute(state).to_signed(),
+            // FromAngle { child } => child.compute(state).to_signed(),
             FromUNFloat { child } => child.compute(state).to_signed(),
             Constant { value } => *value,
             OpenSimplexNoise { noise } => {
@@ -312,9 +312,9 @@ pub enum UNFloatNodes {
     Constant {
         value: UNFloat,
     },
-    FromAngle {
-        child: Box<AngleNodes>,
-    },
+    // FromAngle {
+    //     child: Box<AngleNodes>,
+    // },
     FromSNFloat {
         child: Box<SNFloatNodes>,
     },
@@ -348,7 +348,7 @@ impl Node for UNFloatNodes {
         match self {
             Random => UNFloat::random(),
             Constant { value } => *value,
-            FromAngle { child } => child.compute(state).to_unsigned(),
+            // FromAngle { child } => child.compute(state).to_unsigned(),
             FromSNFloat { child } => child.compute(state).to_unsigned(),
             AbsSNFloat { child } => UNFloat::new(child.compute(state).into_inner().abs()),
             SquareSNFloat { child } => UNFloat::new(child.compute(state).into_inner().powf(2.0)),
