@@ -127,7 +127,7 @@ impl Angle {
     }
 
     pub fn to_signed(self) -> SNFloat {
-        SNFloat::new_from_range(self.value, -1.0 * PI, PI)
+        SNFloat::new_from_range(self.value, 0.0, 2.0 * PI)
     }
 
     pub fn to_unsigned(self) -> UNFloat {
