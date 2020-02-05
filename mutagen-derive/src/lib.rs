@@ -104,9 +104,13 @@ fn generatable_enum(
         return Err(Error::new(span, "Sum of variant gen_weight values is 0"));
     }
 
+    let roll: TokenStream2 = quote! {
+        let roll: f64 = rng.gen_range(0.0, #total_weight);
+    };
+
     let mut top = 0.0;
 
-    let mut out: TokenStream2 = e
+    let variants: TokenStream2 = e
         .variants
         .iter()
         .zip(weights.iter())
@@ -121,8 +125,6 @@ fn generatable_enum(
             let fields = generatable_fields(&variant.fields);
 
             let out: TokenStream2 = quote! {
-                let roll: f64 = rng.gen_range(0.0, #total_weight);
-
                 if roll >= #range_start && roll < #range_end {
                     return Self::#ident #fields;
                 }
@@ -134,11 +136,11 @@ fn generatable_enum(
 
     let ident_s = ident.to_string();
 
-    out.extend(quote! {
+    Ok(quote! {
+        #roll
+        #variants
         unreachable!("Failed to roll variant to generate for {}. Rolled {}, total weight is {}", #ident_s, roll, #total_weight);
-    });
-
-    Ok(out)
+    })
 }
 
 fn generatable_fields(fields: &Fields) -> TokenStream2 {
@@ -341,9 +343,13 @@ fn mutatable_fields(fields: &[&Field], path: &str, _span: Span) -> Result<TokenS
         return Ok(TokenStream2::new());
     }
 
+    let roll: TokenStream2 = quote! {
+        let roll: f64 = rng.gen_range(0.0, #total_weight);
+    };
+
     let mut top = 0.0;
 
-    let mut out: TokenStream2 = fields
+    let fields_out: TokenStream2 = fields
         .iter()
         .zip(weights.iter())
         .filter(|(_, weight)| **weight > 0.0)
@@ -357,7 +363,6 @@ fn mutatable_fields(fields: &[&Field], path: &str, _span: Span) -> Result<TokenS
             let ident = field_ident(field, i);
 
             let out: TokenStream2 = quote! {
-                let roll: f64 = rng.gen_range(0.0, #total_weight);
 
                 if roll >= #range_start && roll < #range_end {
                     ::mutagen::Mutatable::mutate_rng(#ident, rng);
@@ -368,11 +373,11 @@ fn mutatable_fields(fields: &[&Field], path: &str, _span: Span) -> Result<TokenS
         })
         .collect();
 
-    out.extend(quote! {
+    Ok(quote! {
+        #roll
+        #fields_out
         unreachable!("Failed to roll field to mutate in {}.eRolled {}, total weight is {}", #path, roll, #total_weight)
-    });
-
-    Ok(out)
+    })
 }
 
 fn flatten_fields(fields: &Fields) -> Vec<&Field> {
