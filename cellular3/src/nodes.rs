@@ -5,7 +5,7 @@ use crate::{
     noisedatatypes::*,
     datatypes::{Angle, SNFloat, UNFloat},
 };
-use mutagen::Generatable;
+use mutagen::{Generatable, Mutatable};
 use ndarray::prelude::*;
 use noise::{
     BasicMulti, Billow, Checkerboard, Fbm, HybridMulti, NoiseFn, OpenSimplex, RangeFunction,
@@ -20,7 +20,7 @@ pub trait Node {
     fn compute(&self, state: UpdateState) -> Self::Output;
 }
 
-#[derive(Generatable)]
+#[derive(Generatable, Mutatable, Debug)]
 pub enum FloatColorNodes {
     Grayscale {
         child: Box<UNFloatNodes>,
@@ -73,7 +73,7 @@ impl Node for FloatColorNodes {
     }
 }
 
-#[derive(Generatable)]
+#[derive(Generatable, Mutatable, Debug)]
 pub enum PalletteColorNodes {
     //Red,
     // Modulus {
@@ -84,7 +84,7 @@ pub enum PalletteColorNodes {
     //     color_table: Array2<PalletteColor>,
     // },
     FromUNFloat {
-        child: UNFloatNodes,
+        child: Box<UNFloatNodes>,
     },
     GiveColor {
         child_a: Box<PalletteColorNodes>,
@@ -177,7 +177,7 @@ impl Node for PalletteColorNodes {
 
 // }
 
-// #[derive(Generatable)]
+// #[derive(Generatable, Debug)]
 // pub enum FloatNodes {
 //     Tan { child: Box<AngleNodes> },
 //     Constant { value: f32 },
@@ -196,7 +196,7 @@ impl Node for PalletteColorNodes {
 //     }
 // }
 
-// #[derive(Generatable)]
+// #[derive(Generatable, Debug)]
 // pub enum AngleNodes {
 //     ArcSin { theta: Box<SNFloatNodes> },
 //     ArcCos { theta: Box<SNFloatNodes> },
@@ -225,7 +225,7 @@ impl Node for PalletteColorNodes {
 //     }
 // }
 
-#[derive(Generatable)]
+#[derive(Generatable, Mutatable, Debug)]
 pub enum SNFloatNodes {
     // Sin {
     //     child: Box<AngleNodes>,
@@ -306,7 +306,7 @@ impl Node for SNFloatNodes {
     }
 }
 
-#[derive(Generatable)]
+#[derive(Generatable, Mutatable, Debug)]
 pub enum UNFloatNodes {
     Random,
     Constant {

@@ -27,7 +27,7 @@ use crate::{
     reseeders::{Reseed, Reseeder},
     rules::{generate_random_rule_set, mutate_rule_set, RuleSet},
 };
-use mutagen::Generatable;
+use mutagen::{Generatable, Mutatable};
 
 mod colors;
 mod constants;
@@ -409,9 +409,10 @@ impl EventHandler for MyGame {
             //     similar_neighbours: 0,
             // };
 
-            if(random::<u32>() & 100 == 0)
+            if random::<u32>() % 10 == 0
             {
-                self.root_node = Box::new(FloatColorNodes::generate());
+                self.root_node.mutate();
+                println!("{:#?}", &self.root_node);
             }
 
             //Rotate the three buffers by swapping
