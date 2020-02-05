@@ -376,7 +376,7 @@ fn mutatable_fields(fields: &[&Field], path: &str, _span: Span) -> Result<TokenS
     Ok(quote! {
         #roll
         #fields_out
-        unreachable!("Failed to roll field to mutate in {}.eRolled {}, total weight is {}", #path, roll, #total_weight)
+        unreachable!("Failed to roll field to mutate in {}. Rolled {}, total weight is {}", #path, roll, #total_weight)
     })
 }
 
