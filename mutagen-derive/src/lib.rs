@@ -35,8 +35,8 @@ pub fn derive_generatable(input: proc_macro::TokenStream) -> proc_macro::TokenSt
     let span = input.span();
 
     let body = match &input.data {
-        Data::Struct(s) => generatable_struct(s, &input.attrs, span),
-        Data::Enum(e) => generatable_enum(e, &input.attrs, span),
+        Data::Struct(s) => generatable_struct(&input.ident, s, &input.attrs, span),
+        Data::Enum(e) => generatable_enum(&input.ident, e, &input.attrs, span),
         Data::Union(_) => panic!("#[derive(Generatable)] is not yet implemented for unions"),
     }
     .unwrap_or_else(|e| e.to_compile_error());
@@ -54,7 +54,12 @@ pub fn derive_generatable(input: proc_macro::TokenStream) -> proc_macro::TokenSt
     proc_macro::TokenStream::from(output)
 }
 
-fn generatable_struct(s: &DataStruct, _attrs: &[Attribute], _span: Span) -> Result<TokenStream2> {
+fn generatable_struct(
+    _ident: &Ident,
+    s: &DataStruct,
+    _attrs: &[Attribute],
+    _span: Span,
+) -> Result<TokenStream2> {
     let fields = generatable_fields(&s.fields);
 
     Ok(quote! {
@@ -62,11 +67,16 @@ fn generatable_struct(s: &DataStruct, _attrs: &[Attribute], _span: Span) -> Resu
     })
 }
 
-fn generatable_enum(e: &DataEnum, _attrs: &[Attribute], span: Span) -> Result<TokenStream2> {
+fn generatable_enum(
+    ident: &Ident,
+    e: &DataEnum,
+    _attrs: &[Attribute],
+    span: Span,
+) -> Result<TokenStream2> {
     if e.variants.is_empty() {
         return Err(Error::new(
             span,
-            "Cannot derive Generatable for enum with no variants",
+            &format!("Cannot derive Generatable for enum {}: no variants", ident),
         ));
     }
 
@@ -122,8 +132,10 @@ fn generatable_enum(e: &DataEnum, _attrs: &[Attribute], span: Span) -> Result<To
         })
         .collect();
 
+    let ident_s = ident.to_string();
+
     out.extend(quote! {
-        unreachable!()
+        unreachable!("Failed to roll variant for {} in Generatable", #ident_s);
     });
 
     Ok(out)
@@ -183,13 +195,17 @@ pub fn derive_mutatable(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 }
 
 fn mutatable_struct(
-    _ident: &Ident,
+    ident: &Ident,
     s: &DataStruct,
     _attrs: &[Attribute],
     _span: Span,
 ) -> Result<TokenStream2> {
     let bindings = fields_bindings(&s.fields);
-    let body = mutatable_fields(&flatten_fields(&s.fields), s.fields.span())?;
+    let body = mutatable_fields(
+        &flatten_fields(&s.fields),
+        &ident.to_string(),
+        s.fields.span(),
+    )?;
 
     Ok(quote! {
         let Self #bindings = self;
@@ -242,8 +258,11 @@ fn mutatable_enum(
 
             let ident = &variant.ident;
             let bindings = fields_bindings(&variant.fields);
-            let fields_body =
-                mutatable_fields(&flatten_fields(&variant.fields), variant.fields.span())?;
+            let fields_body = mutatable_fields(
+                &flatten_fields(&variant.fields),
+                &format!("{}::{}", &enum_ident, &variant.ident),
+                variant.fields.span()
+            )?;
 
             let out: TokenStream2 = if mut_reroll > 0.0 {
                 quote! {
@@ -294,7 +313,7 @@ fn fields_bindings(fields: &Fields) -> TokenStream2 {
     }
 }
 
-fn mutatable_fields(fields: &[&Field], _span: Span) -> Result<TokenStream2> {
+fn mutatable_fields(fields: &[&Field], path: &str, _span: Span) -> Result<TokenStream2> {
     if fields.is_empty() {
         return Ok(TokenStream2::new());
     }
@@ -350,7 +369,7 @@ fn mutatable_fields(fields: &[&Field], _span: Span) -> Result<TokenStream2> {
         .collect();
 
     out.extend(quote! {
-        unreachable!()
+        unreachable!("Failed to roll field to mutate in {}", #path)
     });
 
     Ok(out)
