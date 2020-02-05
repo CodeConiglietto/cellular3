@@ -366,6 +366,7 @@ fn mutatable_fields(fields: &[&Field], path: &str, _span: Span) -> Result<TokenS
 
                 if roll >= #range_start && roll < #range_end {
                     ::mutagen::Mutatable::mutate_rng(#ident, rng);
+                    return;
                 }
             };
 
