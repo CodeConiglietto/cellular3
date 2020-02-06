@@ -55,7 +55,7 @@ pub fn derive_generatable(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 }
 
 fn generatable_struct(
-    _ident: &Ident,
+    ident: &Ident,
     s: &DataStruct,
     _attrs: &[Attribute],
     _span: Span,
@@ -63,12 +63,12 @@ fn generatable_struct(
     let fields = generatable_fields(&s.fields);
 
     Ok(quote! {
-        Self #fields
+        #ident #fields
     })
 }
 
 fn generatable_enum(
-    ident: &Ident,
+    enum_ident: &Ident,
     e: &DataEnum,
     _attrs: &[Attribute],
     span: Span,
@@ -76,7 +76,10 @@ fn generatable_enum(
     if e.variants.is_empty() {
         return Err(Error::new(
             span,
-            &format!("Cannot derive Generatable for enum {}: no variants", ident),
+            &format!(
+                "Cannot derive Generatable for enum {}: no variants",
+                enum_ident
+            ),
         ));
     }
 
@@ -126,7 +129,7 @@ fn generatable_enum(
 
             let out: TokenStream2 = quote! {
                 if roll >= #range_start && roll < #range_end {
-                    return Self::#ident #fields;
+                    return #enum_ident::#ident #fields;
                 }
             };
 
@@ -134,12 +137,12 @@ fn generatable_enum(
         })
         .collect();
 
-    let ident_s = ident.to_string();
+    let enum_ident_s = enum_ident.to_string();
 
     Ok(quote! {
         #roll
         #variants
-        unreachable!("Failed to roll variant to generate for {}. Rolled {}, total weight is {}", #ident_s, roll, #total_weight);
+        unreachable!("Failed to roll variant to generate for {}. Rolled {}, total weight is {}", #enum_ident_s, roll, #total_weight);
     })
 }
 
@@ -210,7 +213,7 @@ fn mutatable_struct(
     )?;
 
     Ok(quote! {
-        let Self #bindings = self;
+        let #ident #bindings = self;
         #body
     })
 }
@@ -268,7 +271,7 @@ fn mutatable_enum(
 
             let out: TokenStream2 = if mut_reroll > 0.0 {
                 quote! {
-                    Self::#ident #bindings => {
+                    #enum_ident::#ident #bindings => {
                         if rng.sample(::rand::distributions::Bernoulli::new(#mut_reroll).unwrap()) {
                             *self = ::mutagen::Generatable::generate();
                         } else {
@@ -278,7 +281,7 @@ fn mutatable_enum(
                 }
             } else {
                 quote! {
-                    Self::#ident #bindings => { #fields_body }
+                    #enum_ident::#ident #bindings => { #fields_body }
                 }
             };
 
