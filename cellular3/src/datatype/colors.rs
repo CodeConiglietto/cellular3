@@ -1,4 +1,6 @@
+use mutagen::{Generatable, Mutatable};
 use palette::rgb::Rgb;
+use rand::prelude::*;
 
 pub type FloatColor = ggez::graphics::Color;
 
@@ -8,12 +10,6 @@ pub struct IntColor {
     pub g: u8,
     pub b: u8,
 }
-
-pub const WHITE: IntColor = IntColor {
-    r: 255,
-    g: 255,
-    b: 255,
-};
 
 impl From<IntColor> for FloatColor {
     fn from(c: IntColor) -> FloatColor {
@@ -88,6 +84,10 @@ impl PalletteColor {
                 b: 255,
             },
         }
+    }
+
+    pub fn from_float_color(c: FloatColor) -> PalletteColor {
+        PalletteColor::from_components([c.r >= 0.5, c.g >= 0.5, c.b >= 0.5])
     }
 
     pub fn to_index(&self) -> usize {
@@ -205,5 +205,25 @@ impl PalletteColor {
         }
 
         new_color
+    }
+}
+
+impl Generatable for PalletteColor {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        Self::from_components([rng.gen::<bool>(), rng.gen::<bool>(), rng.gen::<bool>()])
+    }
+}
+impl Mutatable for PalletteColor {
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
+        let current_color = self.to_components();
+        let mut new_color = [rng.gen::<bool>(), rng.gen::<bool>(), rng.gen::<bool>()];
+
+        for i in 0..3 {
+            if rng.gen::<bool>() {
+                new_color[i] = current_color[i];
+            }
+        }
+
+        *self = Self::from_components(new_color);
     }
 }

@@ -9,33 +9,26 @@ use ggez::{
     graphics::{self, spritebatch::SpriteBatch, DrawParam, Image, Rect},
     timer, Context, ContextBuilder, GameResult,
 };
-use ndarray::{s, Array2, ArrayView2};
-use noise::{
-    BasicMulti, Billow, Checkerboard, Fbm, HybridMulti, OpenSimplex, RangeFunction, RidgedMulti,
-    SuperSimplex, Value, Worley,
-};
+use ndarray::{s, Array2};
 use rand::prelude::*;
 use rayon::prelude::*;
 
-use crate::{
-    colors::*,
-    constants::*,
-    datatypes::*,
-    nodes::*,
-    noisedatatypes::*,
-    reseeders::{Reseed, Reseeder},
-    rules::{generate_random_rule_set, mutate_rule_set, RuleSet},
-    updatestate::*,
-};
 use mutagen::{Generatable, Mutatable};
 
-mod colors;
+use crate::{
+    constants::*,
+    datatype::colors::FloatColor,
+    node::{color_nodes::FloatColorNodes, Node},
+    updatestate::*,
+};
+
+use ggez::event::KeyCode;
+use ggez::graphics::WHITE;
+use ggez::input::keyboard;
+
 mod constants;
-mod datatypes;
-mod nodes;
-mod noisedatatypes;
-mod reseeders;
-mod rules;
+mod datatype;
+mod node;
 mod updatestate;
 
 fn main() {
@@ -81,6 +74,8 @@ struct MyGame {
     //reseeder: Reseeder,
     //The root node for the tree that computes the next screen state
     root_node: Box<FloatColorNodes>,
+
+    tree_dirty: bool,
 
     current_sync_tic: i32,
 }
@@ -169,87 +164,77 @@ impl MyGame {
                 // },
             ),
 
+            tree_dirty: true,
+
             current_sync_tic: 0,
         }
     }
 }
 
-fn get_random_color() -> PalletteColor {
-    PalletteColor::from_index(random::<usize>() % MAX_COLORS)
-}
-
-//This function assumes an x and y between the ranges -dim().<dimension>..infinity
-fn wrap_point_to_cell_array(
-    old_cell_array: ArrayView2<'_, PalletteColor>,
-    x: i32,
-    y: i32,
-) -> (i32, i32) {
-    let width = old_cell_array.dim().0 as i32;
-    let height = old_cell_array.dim().1 as i32;
-
-    ((x + width) % width, (y + height) % height)
-}
+// fn get_random_color() -> PalletteColor {
+//     PalletteColor::from_index(random::<usize>() % MAX_COLORS)
+// }
 
 //Get the alive neighbours surrounding x,y in a moore neighbourhood, this number should not exceed 8
-fn get_alive_neighbours(
-    old_cell_array: ArrayView2<'_, PalletteColor>,
-    x: i32,
-    y: i32,
-) -> ([usize; MAX_COLORS], i32) {
-    let mut alive_neighbours = [0 as usize; MAX_COLORS]; //An array containing neighbour information for each color
-    let mut similar_neighbours = 0;
+// fn get_alive_neighbours(
+//     old_cell_array: ArrayView2<'_, PalletteColor>,
+//     x: i32,
+//     y: i32,
+// ) -> ([usize; MAX_COLORS], i32) {
+//     let mut alive_neighbours = [0 as usize; MAX_COLORS]; //An array containing neighbour information for each color
+//     let mut similar_neighbours = 0;
 
-    let this_color = old_cell_array[[x as usize, y as usize]];
+//     let this_color = old_cell_array[[x as usize, y as usize]];
 
-    for xx in -1..=1 {
-        for yy in -1..=1 {
-            if !(xx == 0 && yy == 0) {
-                let offset_point = wrap_point_to_cell_array(old_cell_array, x + xx, y + yy);
+//     for xx in -1..=1 {
+//         for yy in -1..=1 {
+//             if !(xx == 0 && yy == 0) {
+//                 let offset_point = wrap_point_to_cell_array(old_cell_array, x + xx, y + yy);
 
-                let neighbour_color =
-                    old_cell_array[[offset_point.0 as usize, offset_point.1 as usize]];
+//                 let neighbour_color =
+//                     old_cell_array[[offset_point.0 as usize, offset_point.1 as usize]];
 
-                alive_neighbours[neighbour_color.to_index()] += 1;
+//                 alive_neighbours[neighbour_color.to_index()] += 1;
 
-                if neighbour_color == this_color {
-                    similar_neighbours += 1;
-                }
-            }
-        }
-    }
+//                 if neighbour_color == this_color {
+//                     similar_neighbours += 1;
+//                 }
+//             }
+//         }
+//     }
 
-    (alive_neighbours, similar_neighbours)
-}
+//     (alive_neighbours, similar_neighbours)
+// }
 
 //Get the next state for a cell
-fn get_next_color(
-    rule_sets: [RuleSet; MAX_COLORS],
-    old_color: PalletteColor,
-    alive_neighbours: [usize; MAX_COLORS],
-) -> PalletteColor {
-    let mut new_color = old_color;
+// fn get_next_color(
+//     rule_sets: [RuleSet; MAX_COLORS],
+//     old_color: PalletteColor,
+//     alive_neighbours: [usize; MAX_COLORS],
+// ) -> PalletteColor {
+//     let mut new_color = old_color;
 
-    for i in 0..MAX_COLORS {
-        let index_color = PalletteColor::from_index(i);
-        let current_rule = rule_sets[new_color.to_index()].rules[i];
+//     for i in 0..MAX_COLORS {
+//         let index_color = PalletteColor::from_index(i);
+//         let current_rule = rule_sets[new_color.to_index()].rules[i];
 
-        if new_color.has_color(index_color)
-        //This color is alive
-        {
-            //This color is killed
-            if current_rule.death_neighbours[alive_neighbours[i]] {
-                new_color = PalletteColor::from_components(new_color.take_color(index_color));
-            }
-        } else {
-            //This color is dead but is being born again
-            if current_rule.life_neighbours[alive_neighbours[i]] {
-                new_color = PalletteColor::from_components(new_color.give_color(index_color));
-            }
-        }
-    }
+//         if new_color.has_color(index_color)
+//         //This color is alive
+//         {
+//             //This color is killed
+//             if current_rule.death_neighbours[alive_neighbours[i]] {
+//                 new_color = PalletteColor::from_components(new_color.take_color(index_color));
+//             }
+//         } else {
+//             //This color is dead but is being born again
+//             if current_rule.life_neighbours[alive_neighbours[i]] {
+//                 new_color = PalletteColor::from_components(new_color.give_color(index_color));
+//             }
+//         }
+//     }
 
-    new_color
-}
+//     new_color
+// }
 
 //Simple color lerp - May be able to find a better one here: https://www.alanzucconi.com/2016/01/06/colour-interpolation/
 fn lerp_float_color(a: FloatColor, b: FloatColor, value: f32) -> FloatColor {
@@ -314,6 +299,10 @@ impl AddAssign<UpdateStat> for UpdateStat {
 
 impl EventHandler for MyGame {
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
+        if keyboard::is_key_pressed(ctx, KeyCode::Space) {
+            self.tree_dirty = true;
+        }
+
         let width = self.cell_array.dim().0 as i32;
         let height = self.cell_array.dim().1 as i32;
 
@@ -332,7 +321,7 @@ impl EventHandler for MyGame {
 
         let root_node = &self.root_node;
 
-        let slice_update_stat: UpdateStat = ndarray::Zip::indexed(current_update_slice)
+        let _slice_update_stat: UpdateStat = ndarray::Zip::indexed(current_update_slice)
             .and(new_update_slice)
             .into_par_iter()
             .map(|((x, y), current, new)| {
@@ -340,9 +329,9 @@ impl EventHandler for MyGame {
                 //     get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
 
                 let new_color = root_node.compute(UpdateState {
-                    x: x,
-                    y: y + slice_y as usize,
-                    t: current_sync_tic,
+                    x: x as f32,
+                    y: (y as f32 + slice_y as f32),
+                    t: current_sync_tic as f32,
                     cell_array: cell_array_view,
                 }); //get_next_color(rule_sets, *current, neighbour_result.0);
 
@@ -363,7 +352,7 @@ impl EventHandler for MyGame {
 
         //self.rolling_update_stat_total += slice_update_stat;
 
-        let total_cells = width * height;
+        let _total_cells = width * height;
 
         if timer::ticks(ctx) as i32 % TICS_PER_UPDATE == 0 {
             self.current_sync_tic += 1;
@@ -414,9 +403,11 @@ impl EventHandler for MyGame {
             //     similar_neighbours: 0,
             // };
 
-            if random::<u32>() % 20 == 0 {
+            if self.tree_dirty || random::<u32>() % 20 == 0 {
                 self.root_node.mutate();
+                println!("====MUTATING TREE====");
                 println!("{:#?}", &self.root_node);
+                //self.tree_dirty = false;
             }
 
             //Rotate the three buffers by swapping
