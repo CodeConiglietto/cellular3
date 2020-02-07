@@ -35,9 +35,9 @@ impl From<image::Rgb<u8>> for IntColor {
 impl From<IntColor> for FloatColor {
     fn from(c: IntColor) -> FloatColor {
         FloatColor {
-            r: c.r as f32 / 255.0,
-            g: c.g as f32 / 255.0,
-            b: c.b as f32 / 255.0,
+            r: c.r as f32 / 256.0,
+            g: c.g as f32 / 256.0,
+            b: c.b as f32 / 256.0,
             a: 1.0,
         }
     }
