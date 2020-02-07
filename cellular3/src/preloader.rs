@@ -19,7 +19,9 @@ where
     {
         let (sender, receiver) = mpsc::sync_channel(pool_size);
         let _worker_thread = thread::spawn(move || loop {
-            sender.send(generator()).unwrap();
+            if sender.send(generator()).is_err() {
+                break;
+            }
         });
 
         Self {
