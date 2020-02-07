@@ -15,7 +15,7 @@ use rand::prelude::*;
 use crate::{constants::*, datatype::colors::IntColor, util};
 
 lazy_static! {
-    pub static ref ALL_IMAGES: Vec<PathBuf> = util::collect_filenames("./Images");
+    pub static ref ALL_IMAGES: Vec<PathBuf> = util::collect_filenames(IMAGE_PATH);
 }
 
 pub struct Image {
@@ -53,8 +53,8 @@ impl Debug for Image {
 }
 
 impl Generatable for Image {
-    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R) -> Self {
-        Self::load_file(PathBuf::from(IMAGE_PATH).join("test.gif"))
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        Self::load_file(ALL_IMAGES.choose(rng).unwrap())
     }
 }
 
