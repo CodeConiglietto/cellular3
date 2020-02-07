@@ -2,7 +2,7 @@ use palette::{encoding::srgb::Srgb, rgb::Rgb, Hsv, RgbHue};
 
 use crate::{
     constants::MAX_COLORS,
-    datatype::colors::*,
+    datatype::{colors::*, image::*},
     node::{primitive_nodes::*, Node, state_nodes::*},
     updatestate::UpdateState,
 };
@@ -29,6 +29,9 @@ pub enum FloatColorNodes {
     FromCellArray,
     FromPalletteColor {
         child: Box<PalletteColorNodes>,
+    },
+    FromIntColor {
+        child: Box<IntColorNodes>,
     },
     // ModifyState {
     //     child: Box<FloatColorNodes>,
@@ -90,6 +93,7 @@ impl Node for FloatColorNodes {
             },
             FromPalletteColor { child } => FloatColor::from(child.compute(state)),
             // ModifyState { child, child_state } => child.compute(child_state.compute(state).into_inner()),
+            FromIntColor { child } => FloatColor::from(child.compute(state)),
         }
     }
 }
@@ -98,14 +102,6 @@ impl Node for FloatColorNodes {
 #[mutagen(mut_reroll = 0.1)]
 #[allow(dead_code)]
 pub enum PalletteColorNodes {
-    //Red,
-    // Modulus {
-    //     x_mod: usize,
-    //     y_mod: usize,
-    //     x_offset: usize,
-    //     y_offset: usize,
-    //     color_table: Array2<PalletteColor>,
-    // },
     Constant {
         value: PalletteColor,
     },
@@ -140,30 +136,6 @@ pub enum PalletteColorNodes {
     FromFloatColor {
         child: Box<FloatColorNodes>,
     },
-    // CoordinateTranslateX {
-    //     child: Box<PalletteColorNodes>,
-    //     x: Box<SNFloatNodes>,
-    // },
-    // CoordinateTranslateY {
-    //     child: Box<PalletteColorNodes>,
-    //     y: Box<SNFloatNodes>,
-    // },
-    // CoordinateTranslateT {
-    //     child: Box<PalletteColorNodes>,
-    //     t: Box<SNFloatNodes>,
-    // },
-    // CoordinateScaleX {
-    //     child: Box<PalletteColorNodes>,
-    //     x: Box<UNFloatNodes>,
-    // },
-    // CoordinateScaleY {
-    //     child: Box<PalletteColorNodes>,
-    //     y: Box<UNFloatNodes>,
-    // },
-    // CoordinateScaleT {
-    //     child: Box<PalletteColorNodes>,
-    //     t: Box<UNFloatNodes>,
-    // },
 }
 
 impl Node for PalletteColorNodes {
@@ -172,19 +144,6 @@ impl Node for PalletteColorNodes {
     fn compute(&self, state: UpdateState) -> Self::Output {
         use PalletteColorNodes::*;
         match self {
-            //ColorNodes::Red => PalletteColor::Red,
-            // Modulus {
-            //     x_mod,
-            //     y_mod,
-            //     x_offset,
-            //     y_offset,
-            //     color_table,
-            // } => {
-            //     let x_index = if (state.x + x_offset) % x_mod == 0 { 1 } else { 0 };
-            //     let y_index = if (state.y + y_offset) % y_mod == 0 { 1 } else { 0 };
-
-            //     color_table[[x_index, y_index]]
-            // }
             Constant { value } => *value,
             FromUNFloat { child } => PalletteColor::from_index(
                 (child.compute(state).into_inner() * 0.99 * (MAX_COLORS) as f32) as usize,
@@ -209,42 +168,25 @@ impl Node for PalletteColorNodes {
             FromFloatColor { child } => {
                 PalletteColor::from_float_color(child.compute(state))
             }
-            // CoordinateTranslateX { child, x } => child.compute(UpdateState {
-            //     x: state.x + x.compute(state).into_inner(),
-            //     y: state.y,
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateTranslateY { child, y } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y + y.compute(state).into_inner(),
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateTranslateT { child, t } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y,
-            //     t: state.t + t.compute(state).into_inner(),
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleX { child, x } => child.compute(UpdateState {
-            //     x: (state.x * x.compute(state).into_inner()),
-            //     y: state.y,
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleY { child, y } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: (state.y * y.compute(state).into_inner()),
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleT { child, t } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y,
-            //     t: (state.t * t.compute(state).into_inner()),
-            //     cell_array: state.cell_array,
-            // }),
+        }
+    }
+}
+
+#[derive(Generatable, Mutatable, Debug)]
+#[mutagen(mut_reroll = 0.1)]
+#[allow(dead_code)]
+pub enum IntColorNodes {
+    FromImage { image: Image },
+}
+
+impl Node for IntColorNodes {
+    type Output = IntColor;
+
+    fn compute(&self, state: UpdateState) -> Self::Output {
+        use IntColorNodes::*;
+
+        match self{
+            FromImage { image } => image.get_pixel(state.coordinate_set.x as u32, state.coordinate_set.y as u32, state.coordinate_set.t as u32),
         }
     }
 }

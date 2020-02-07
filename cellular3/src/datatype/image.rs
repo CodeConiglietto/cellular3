@@ -1,9 +1,16 @@
-use std::{ffi::OsStr, fs::File, io::BufReader, path::Path};
+use std::{path::PathBuf, ffi::OsStr, fs::File, io::BufReader, path::Path};
+use rand::prelude::*;
 
 use image::{gif, AnimationDecoder, DynamicImage, RgbImage};
 
-use crate::datatype::colors::IntColor;
+use mutagen::{Generatable, Mutatable};
 
+use crate::{
+    datatype::colors::IntColor, 
+    constants::*
+};
+
+#[derive(Debug)]
 pub struct Image {
     frames: Vec<RgbImage>,
 }
@@ -27,6 +34,18 @@ impl Image {
 
     pub fn get_pixel(&self, x: u32, y: u32, t: u32) -> IntColor {
         (*self.frames[t as usize % self.frames.len()].get_pixel(x, y)).into()
+    }
+}
+
+impl Generatable for Image {
+    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R) -> Self {
+        Self::load_file(PathBuf::from(IMAGE_PATH).join("test.jpg"))
+    }
+}
+
+impl Mutatable for Image {
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, _rng: &mut R) {
+        *self = Self::generate();
     }
 }
 

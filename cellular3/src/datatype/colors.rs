@@ -11,6 +11,17 @@ pub struct IntColor {
     pub b: u8,
 }
 
+impl Generatable for IntColor {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        Self{ r: rng.gen::<u8>(), g: rng.gen::<u8>(), b: rng.gen::<u8>()}
+    }
+}
+impl Mutatable for IntColor {
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
+        *self = Self::generate();
+    }
+}
+
 impl From<image::Rgb<u8>> for IntColor {
     fn from(c: image::Rgb<u8>) -> Self {
         Self {
