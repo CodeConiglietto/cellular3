@@ -4,3 +4,6 @@ members = [
   "mutagen",
   "mutagen-derive",
 ]
+
+[profile.release]
+debug = true
