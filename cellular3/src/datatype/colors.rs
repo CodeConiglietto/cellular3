@@ -11,6 +11,16 @@ pub struct IntColor {
     pub b: u8,
 }
 
+impl From<image::Rgb<u8>> for IntColor {
+    fn from(c: image::Rgb<u8>) -> Self {
+        Self {
+            r: c.0[0],
+            g: c.0[1],
+            b: c.0[2],
+        }
+    }
+}
+
 impl From<IntColor> for FloatColor {
     fn from(c: IntColor) -> FloatColor {
         FloatColor {
