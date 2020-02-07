@@ -3,7 +3,7 @@ use palette::{encoding::srgb::Srgb, rgb::Rgb, Hsv, RgbHue};
 use crate::{
     constants::MAX_COLORS,
     datatype::{colors::*, image::*},
-    node::{primitive_nodes::*, state_nodes::*, Node},
+    node::{primitive_nodes::*, Node},
     updatestate::UpdateState,
 };
 use mutagen::{Generatable, Mutatable};

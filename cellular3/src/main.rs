@@ -92,7 +92,7 @@ impl MyGame {
 
         MyGame {
             // ...
-            image: Image::solid(ctx, 1, WHITE.into()).unwrap(),
+            image: Image::solid(ctx, 1, WHITE).unwrap(),
 
             bounds: Rect::new(0.0, 0.0, pixels_x, pixels_y),
 

@@ -21,7 +21,7 @@ impl Generatable for IntColor {
     }
 }
 impl Mutatable for IntColor {
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, _rng: &mut R) {
         *self = Self::generate();
     }
 }
@@ -82,7 +82,7 @@ pub enum PalletteColor {
 }
 
 impl PalletteColor {
-    pub fn get_color(&self) -> IntColor {
+    pub fn get_color(self) -> IntColor {
         match self {
             PalletteColor::Black => IntColor { r: 0, g: 0, b: 0 },
             PalletteColor::Red => IntColor { r: 255, g: 0, b: 0 },
@@ -115,7 +115,7 @@ impl PalletteColor {
         PalletteColor::from_components([c.r >= 0.5, c.g >= 0.5, c.b >= 0.5])
     }
 
-    pub fn to_index(&self) -> usize {
+    pub fn to_index(self) -> usize {
         match self {
             PalletteColor::Black => 0,
             PalletteColor::Red => 1,
@@ -145,7 +145,7 @@ impl PalletteColor {
         }
     }
 
-    pub fn to_components(&self) -> [bool; 3] {
+    pub fn to_components(self) -> [bool; 3] {
         match self {
             PalletteColor::Black => [false, false, false],
             PalletteColor::Red => [true, false, false],
@@ -171,7 +171,7 @@ impl PalletteColor {
         }
     }
 
-    pub fn has_color(&self, other: PalletteColor) -> bool {
+    pub fn has_color(self, other: PalletteColor) -> bool {
         let mut has_color = false;
         let current_color = self.to_components();
         let other_color = other.to_components();
@@ -183,7 +183,7 @@ impl PalletteColor {
         has_color
     }
 
-    pub fn give_color(&self, other: PalletteColor) -> [bool; 3] {
+    pub fn give_color(self, other: PalletteColor) -> [bool; 3] {
         let mut new_color = [false; 3];
         let current_color = self.to_components();
         let other_color = other.to_components();
@@ -195,7 +195,7 @@ impl PalletteColor {
         new_color
     }
 
-    pub fn take_color(&self, other: PalletteColor) -> [bool; 3] {
+    pub fn take_color(self, other: PalletteColor) -> [bool; 3] {
         let mut new_color = [false; 3];
         let current_color = self.to_components();
         let other_color = other.to_components();
@@ -207,7 +207,7 @@ impl PalletteColor {
         new_color
     }
 
-    pub fn xor_color(&self, other: PalletteColor) -> [bool; 3] {
+    pub fn xor_color(self, other: PalletteColor) -> [bool; 3] {
         let mut new_color = [false; 3];
         let current_color = self.to_components();
         let other_color = other.to_components();
@@ -220,7 +220,7 @@ impl PalletteColor {
         new_color
     }
 
-    pub fn eq_color(&self, other: PalletteColor) -> [bool; 3] {
+    pub fn eq_color(self, other: PalletteColor) -> [bool; 3] {
         let mut new_color = [false; 3];
         let current_color = self.to_components();
         let other_color = other.to_components();

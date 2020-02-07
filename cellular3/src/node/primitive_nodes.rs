@@ -55,34 +55,34 @@ pub enum SNFloatNodes {
         child: Box<UNFloatNodes>,
     },
     BasicMultiFractalNoise {
-        noise: BasicMultiFractalNoise,
+        noise: Box<BasicMultiFractalNoise>,
     },
     BillowNoise {
-        noise: BasicMultiFractalNoise,
+        noise: Box<BasicMultiFractalNoise>,
     },
     CheckerboardNoise {
-        noise: BasicMultiFractalNoise,
+        noise: Box<BasicMultiFractalNoise>,
     },
     FractalBrownianNoise {
-        noise: FractalBrownianNoise,
+        noise: Box<FractalBrownianNoise>,
     },
     HybridMultiFractalNoise {
-        noise: BasicMultiFractalNoise,
+        noise: Box<BasicMultiFractalNoise>,
     },
     OpenSimplexNoise {
-        noise: OpenSimplexNoise,
+        noise: Box<OpenSimplexNoise>,
     },
     RidgedMultiFractalNoise {
-        noise: RidgedMultiFractalNoise,
+        noise: Box<RidgedMultiFractalNoise>,
     },
     SuperSimplexNoise {
-        noise: SuperSimplexNoise,
+        noise: Box<SuperSimplexNoise>,
     },
     ValueNoise {
-        noise: RidgedMultiFractalNoise,
+        noise: Box<RidgedMultiFractalNoise>,
     },
     WorleyNoise {
-        noise: WorleyNoise,
+        noise: Box<WorleyNoise>,
     },
     Multiply {
         child_a: Box<SNFloatNodes>,
