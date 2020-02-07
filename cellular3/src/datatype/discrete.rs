@@ -37,7 +37,7 @@ impl Byte {
     pub fn new(value: usize) -> Self {
         assert!(value <= BYTE_MAX_VALUE);
 
-        Self{value: value}
+        Self { value: value }
     }
 
     pub fn into_inner(self) -> usize {

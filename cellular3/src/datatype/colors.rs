@@ -13,7 +13,11 @@ pub struct IntColor {
 
 impl Generatable for IntColor {
     fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        Self{ r: rng.gen::<u8>(), g: rng.gen::<u8>(), b: rng.gen::<u8>()}
+        Self {
+            r: rng.gen::<u8>(),
+            g: rng.gen::<u8>(),
+            b: rng.gen::<u8>(),
+        }
     }
 }
 impl Mutatable for IntColor {

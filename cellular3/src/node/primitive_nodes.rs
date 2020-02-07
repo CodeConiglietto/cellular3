@@ -1,6 +1,6 @@
 use crate::{
     constants::*,
-    datatype::{noisefunctions::*, discrete::*, continuous::*},
+    datatype::{continuous::*, discrete::*, noisefunctions::*},
     node::{color_nodes::*, Node},
     updatestate::*,
 };
@@ -9,24 +9,13 @@ use noise::NoiseFn;
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
-#[allow(dead_code)]
 pub enum AngleNodes {
-    ArcSin {
-        theta: Box<SNFloatNodes>,
-    },
-    ArcCos {
-        theta: Box<SNFloatNodes>,
-    },
+    ArcSin { theta: Box<SNFloatNodes> },
+    ArcCos { theta: Box<SNFloatNodes> },
     Random,
-    Constant {
-        value: Angle,
-    },
-    FromSNFloat {
-        child: Box<SNFloatNodes>,
-    },
-    FromUNFloat {
-        child: Box<UNFloatNodes>,
-    },
+    Constant { value: Angle },
+    FromSNFloat { child: Box<SNFloatNodes> },
+    FromUNFloat { child: Box<UNFloatNodes> },
 }
 
 impl Node for AngleNodes {
@@ -48,7 +37,6 @@ impl Node for AngleNodes {
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
-#[allow(dead_code)]
 pub enum SNFloatNodes {
     Sin {
         child: Box<AngleNodes>,
@@ -237,7 +225,6 @@ impl Node for SNFloatNodes {
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
-#[allow(dead_code)]
 pub enum UNFloatNodes {
     Random,
     Constant {
@@ -397,7 +384,6 @@ impl Node for UNFloatNodes {
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
-#[allow(dead_code)]
 pub enum BooleanNodes {
     UNFloatLess {
         child_a: Box<UNFloatNodes>,

@@ -1,13 +1,12 @@
 // use crate::
 // {
-//     updatestate::UpdateState, 
+//     updatestate::UpdateState,
 //     node::{Node, primitive_nodes::*},
 // };
 // use mutagen::{Generatable, Mutatable};
 
 // #[derive(Generatable, Mutatable, Debug)]
 // #[mutagen(mut_reroll = 0.1)]
-// #[allow(dead_code)]
 // pub enum StateNodes{
 //     ShiftX { child: Box<SNFloatNodes> },
 //     ShiftY { child: Box<SNFloatNodes> },

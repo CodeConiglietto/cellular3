@@ -1,11 +1,6 @@
-use crate::
-{
-    datatype::{
-        colors::FloatColor,
-        discrete::*,
-        continuous::*,
-    },
+use crate::{
     constants::*,
+    datatype::{colors::FloatColor, continuous::*, discrete::*},
 };
 use ndarray::prelude::*;
 
@@ -19,7 +14,14 @@ pub struct UpdateState<'a> {
 
 impl<'a> UpdateState<'a> {
     fn get_coord_shifted(self, shift_x: f32, shift_y: f32, shift_t: f32) -> Self {
-        UpdateState{ coordinate_set: CoordinateSet{x: self.coordinate_set.x + shift_x, y: self.coordinate_set.y + shift_y, t: self.coordinate_set.t + shift_t}, cell_array: self.cell_array}
+        UpdateState {
+            coordinate_set: CoordinateSet {
+                x: self.coordinate_set.x + shift_x,
+                y: self.coordinate_set.y + shift_y,
+                t: self.coordinate_set.t + shift_t,
+            },
+            cell_array: self.cell_array,
+        }
     }
 }
 
@@ -34,13 +36,11 @@ pub struct CoordinateSet {
 }
 
 impl CoordinateSet {
-    pub fn get_byte_t(&self) -> Byte 
-    {
+    pub fn get_byte_t(&self) -> Byte {
         Byte::new(self.t as usize % BYTE_POSSIBLE_VALUES)
     }
 
-    pub fn get_unfloat_t(&self) -> UNFloat 
-    {
+    pub fn get_unfloat_t(&self) -> UNFloat {
         UNFloat::new(self.get_byte_t().into_inner() as f32 / BYTE_POSSIBLE_VALUES as f32)
     }
 }

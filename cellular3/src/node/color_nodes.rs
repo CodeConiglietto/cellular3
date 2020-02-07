@@ -3,15 +3,14 @@ use palette::{encoding::srgb::Srgb, rgb::Rgb, Hsv, RgbHue};
 use crate::{
     constants::MAX_COLORS,
     datatype::{colors::*, image::*},
-    node::{primitive_nodes::*, Node, state_nodes::*},
+    node::{primitive_nodes::*, state_nodes::*, Node},
     updatestate::UpdateState,
 };
-use ndarray::prelude::*;
 use mutagen::{Generatable, Mutatable};
+use ndarray::prelude::*;
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
-#[allow(dead_code)]
 pub enum FloatColorNodes {
     Grayscale {
         child: Box<UNFloatNodes>,
@@ -84,13 +83,13 @@ impl Node for FloatColorNodes {
                 float_color_from_pallette_rgb(rgb)
             }
             FromCellArray => {
-                let (x, y) = 
-                    wrap_point_to_cell_array(
-                        state.cell_array.view(), 
-                        state.coordinate_set.x as usize, 
-                        state.coordinate_set.y as usize);
+                let (x, y) = wrap_point_to_cell_array(
+                    state.cell_array.view(),
+                    state.coordinate_set.x as usize,
+                    state.coordinate_set.y as usize,
+                );
                 state.cell_array[[x as usize, y as usize]]
-            },
+            }
             FromPalletteColor { child } => FloatColor::from(child.compute(state)),
             // ModifyState { child, child_state } => child.compute(child_state.compute(state).into_inner()),
             FromIntColor { child } => FloatColor::from(child.compute(state)),
@@ -100,7 +99,6 @@ impl Node for FloatColorNodes {
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
-#[allow(dead_code)]
 pub enum PalletteColorNodes {
     Constant {
         value: PalletteColor,
@@ -165,16 +163,13 @@ impl Node for PalletteColorNodes {
                 g.compute(state).into_inner(),
                 b.compute(state).into_inner(),
             ]),
-            FromFloatColor { child } => {
-                PalletteColor::from_float_color(child.compute(state))
-            }
+            FromFloatColor { child } => PalletteColor::from_float_color(child.compute(state)),
         }
     }
 }
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
-#[allow(dead_code)]
 pub enum IntColorNodes {
     FromImage { image: Image },
 }
@@ -185,8 +180,12 @@ impl Node for IntColorNodes {
     fn compute(&self, state: UpdateState) -> Self::Output {
         use IntColorNodes::*;
 
-        match self{
-            FromImage { image } => image.get_pixel(state.coordinate_set.x as u32, state.coordinate_set.y as u32, state.coordinate_set.t as u32),
+        match self {
+            FromImage { image } => image.get_pixel(
+                state.coordinate_set.x as u32,
+                state.coordinate_set.y as u32,
+                state.coordinate_set.t as u32,
+            ),
         }
     }
 }
