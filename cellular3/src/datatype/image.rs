@@ -39,7 +39,7 @@ impl Image {
 
 impl Generatable for Image {
     fn generate_rng<R: Rng + ?Sized>(_rng: &mut R) -> Self {
-        Self::load_file(PathBuf::from(IMAGE_PATH).join("test.jpg"))
+        Self::load_file(PathBuf::from(IMAGE_PATH).join("test.gif"))
     }
 }
 
