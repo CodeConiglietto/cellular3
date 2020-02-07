@@ -30,6 +30,7 @@ mod constants;
 mod datatype;
 mod node;
 mod updatestate;
+mod util;
 
 fn main() {
     // Make a Context.
@@ -329,7 +330,7 @@ impl EventHandler for MyGame {
                 //     get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
 
                 let new_color = root_node.compute(UpdateState {
-                    coordinate_set: CoordinateSet{
+                    coordinate_set: CoordinateSet {
                         x: x as f32,
                         y: (y as f32 + slice_y as f32),
                         t: current_sync_tic as f32,

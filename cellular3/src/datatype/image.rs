@@ -8,10 +8,15 @@ use std::{
 };
 
 use image::{gif, imageops, AnimationDecoder, DynamicImage, FilterType, RgbImage};
+use lazy_static::lazy_static;
 use mutagen::{Generatable, Mutatable};
 use rand::prelude::*;
 
-use crate::{constants::*, datatype::colors::IntColor};
+use crate::{constants::*, datatype::colors::IntColor, util};
+
+lazy_static! {
+    pub static ref ALL_IMAGES: Vec<PathBuf> = util::collect_filenames("./Images");
+}
 
 pub struct Image {
     frames: Vec<RgbImage>,
