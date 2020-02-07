@@ -17,7 +17,7 @@ lazy_static! {
 }
 
 thread_local! {
-    static IMAGE_PRELOADER: Preloader<Image> = Preloader::new(5,    load_random_image);
+    static IMAGE_PRELOADER: Preloader<Image> = Preloader::new(5, load_random_image);
 }
 
 fn load_random_image() -> Image {
