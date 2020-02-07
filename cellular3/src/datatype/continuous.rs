@@ -4,31 +4,6 @@ use std::f32::consts::PI;
 use rand::prelude::*;
 
 #[derive(Clone, Copy, Debug)]
-pub struct Boolean {
-    pub value: bool,
-}
-
-impl Boolean {
-    pub fn into_inner(self) -> bool {
-        self.value
-    }
-}
-
-impl Generatable for Boolean {
-    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R) -> Self {
-        Boolean {
-            value: thread_rng().gen::<bool>(),
-        }
-    }
-}
-
-impl Mutatable for Boolean {
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, _rng: &mut R) {
-        *self = Self::generate();
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
 pub struct UNFloat {
     value: f32,
 }

@@ -3,7 +3,7 @@ use palette::{encoding::srgb::Srgb, rgb::Rgb, Hsv, RgbHue};
 use crate::{
     constants::MAX_COLORS,
     datatype::colors::*,
-    node::{primitive_nodes::*, Node},
+    node::{primitive_nodes::*, Node, state_nodes::*},
     updatestate::UpdateState,
 };
 use ndarray::prelude::*;
@@ -30,30 +30,10 @@ pub enum FloatColorNodes {
     FromPalletteColor {
         child: Box<PalletteColorNodes>,
     },
-    // CoordinateTranslateX {
+    // ModifyState {
     //     child: Box<FloatColorNodes>,
-    //     x: Box<SNFloatNodes>,
-    // },
-    // CoordinateTranslateY {
-    //     child: Box<FloatColorNodes>,
-    //     y: Box<SNFloatNodes>,
-    // },
-    // CoordinateTranslateT {
-    //     child: Box<FloatColorNodes>,
-    //     t: Box<SNFloatNodes>,
-    // },
-    // CoordinateScaleX {
-    //     child: Box<FloatColorNodes>,
-    //     x: Box<UNFloatNodes>,
-    // },
-    // CoordinateScaleY {
-    //     child: Box<FloatColorNodes>,
-    //     y: Box<UNFloatNodes>,
-    // },
-    // CoordinateScaleT {
-    //     child: Box<FloatColorNodes>,
-    //     t: Box<UNFloatNodes>,
-    // },
+    //     child_state: Box<StateNodes>,
+    // }
 }
 
 // This function assumes an x and y between the ranges -dim().<dimension>..infinity
@@ -65,7 +45,7 @@ fn wrap_point_to_cell_array(
     let width = cell_array.dim().0 as usize;
     let height = cell_array.dim().1 as usize;
 
-    ((x + width) % width, (y + height) % height)
+    ((x % width + width) % width, (y % height + height) % height)
 }
 
 impl Node for FloatColorNodes {
@@ -101,46 +81,15 @@ impl Node for FloatColorNodes {
                 float_color_from_pallette_rgb(rgb)
             }
             FromCellArray => {
-                let (x, y) = wrap_point_to_cell_array(state.cell_array.view(), state.x as usize, state.y as usize);
+                let (x, y) = 
+                    wrap_point_to_cell_array(
+                        state.cell_array.view(), 
+                        state.coordinate_set.x as usize, 
+                        state.coordinate_set.y as usize);
                 state.cell_array[[x as usize, y as usize]]
             },
             FromPalletteColor { child } => FloatColor::from(child.compute(state)),
-            // CoordinateTranslateX { child, x } => child.compute(UpdateState {
-            //     x: state.x + x.compute(state).into_inner(),
-            //     y: state.y,
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateTranslateY { child, y } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y + y.compute(state).into_inner(),
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateTranslateT { child, t } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y,
-            //     t: state.t + t.compute(state).into_inner(),
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleX { child, x } => child.compute(UpdateState {
-            //     x: (state.x * x.compute(state).into_inner()),
-            //     y: state.y,
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleY { child, y } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: (state.y * y.compute(state).into_inner()),
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleT { child, t } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y,
-            //     t: (state.t * t.compute(state).into_inner()),
-            //     cell_array: state.cell_array,
-            // }),
+            // ModifyState { child, child_state } => child.compute(child_state.compute(state).into_inner()),
         }
     }
 }

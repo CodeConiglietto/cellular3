@@ -1,4 +1,4 @@
-use crate::datatype::primitives::UNFloat;
+use crate::datatype::continuous::UNFloat;
 use mutagen::{Generatable, Mutatable};
 use noise::{
     BasicMulti, Billow, Checkerboard, Fbm, HybridMulti, OpenSimplex, RangeFunction, RidgedMulti,
@@ -99,7 +99,7 @@ impl Generatable for CheckerboardNoise {
 }
 impl Mutatable for CheckerboardNoise {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        match random::<u32>() % 4 {
+        match random::<u32>() % 5 {
             0 => {
                 self.x_scale = UNFloat::generate_rng(rng);
             }
@@ -110,6 +110,9 @@ impl Mutatable for CheckerboardNoise {
                 self.t_scale = UNFloat::generate_rng(rng);
             }
             3 => {
+                self.noise.set_size(rng.gen::<usize>() % 16 + 1);
+            }
+            4 => {
                 self.noise = Checkerboard::new();
             }
             _ => panic!(),
@@ -247,7 +250,7 @@ impl Generatable for RidgedMultiFractalNoise {
 }
 impl Mutatable for RidgedMultiFractalNoise {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        match random::<u32>() % 4 {
+        match random::<u32>() % 5 {
             0 => {
                 self.x_scale = UNFloat::generate_rng(rng);
             }
@@ -258,6 +261,9 @@ impl Mutatable for RidgedMultiFractalNoise {
                 self.t_scale = UNFloat::generate_rng(rng);
             }
             3 => {
+                self.noise.attenuation = rng.gen::<f64>() * 8.0;
+            }
+            4 => {
                 self.noise = RidgedMulti::new();
             }
             _ => panic!(),

@@ -1,6 +1,7 @@
 pub mod color_nodes;
 pub mod noise_nodes;
 pub mod primitive_nodes;
+pub mod state_nodes;
 
 use crate::updatestate::UpdateState;
 

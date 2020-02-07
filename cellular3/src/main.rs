@@ -329,9 +329,11 @@ impl EventHandler for MyGame {
                 //     get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
 
                 let new_color = root_node.compute(UpdateState {
-                    x: x as f32,
-                    y: (y as f32 + slice_y as f32),
-                    t: current_sync_tic as f32,
+                    coordinate_set: CoordinateSet{
+                        x: x as f32,
+                        y: (y as f32 + slice_y as f32),
+                        t: current_sync_tic as f32,
+                    },
                     cell_array: cell_array_view,
                 }); //get_next_color(rule_sets, *current, neighbour_result.0);
 
@@ -403,11 +405,11 @@ impl EventHandler for MyGame {
             //     similar_neighbours: 0,
             // };
 
-            if self.tree_dirty || random::<u32>() % 20 == 0 {
+            if self.tree_dirty || random::<u32>() % 100 == 0 {
                 self.root_node.mutate();
                 println!("====MUTATING TREE====");
                 println!("{:#?}", &self.root_node);
-                //self.tree_dirty = false;
+                self.tree_dirty = false;
             }
 
             //Rotate the three buffers by swapping

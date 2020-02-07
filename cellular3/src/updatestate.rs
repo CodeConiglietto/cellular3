@@ -1,13 +1,46 @@
-use crate::datatype::colors::FloatColor;
+use crate::
+{
+    datatype::{
+        colors::FloatColor,
+        discrete::*,
+        continuous::*,
+    },
+    constants::*,
+};
 use ndarray::prelude::*;
 
 #[derive(Clone, Copy, Debug)]
 pub struct UpdateState<'a> {
-    //coordinates of update position
-    pub x: f32,
-    pub y: f32,
-    //current gametic
-    pub t: f32,
+    //the set of coordinates for the update
+    pub coordinate_set: CoordinateSet,
     //cell array to read from
     pub cell_array: ArrayView2<'a, FloatColor>,
+}
+
+impl<'a> UpdateState<'a> {
+    fn get_coord_shifted(self, shift_x: f32, shift_y: f32, shift_t: f32) -> Self {
+        UpdateState{ coordinate_set: CoordinateSet{x: self.coordinate_set.x + shift_x, y: self.coordinate_set.y + shift_y, t: self.coordinate_set.t + shift_t}, cell_array: self.cell_array}
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct CoordinateSet {
+    //coordinates of update position
+    //Needs to be floating point to allow for proper scaling
+    pub x: f32,
+    pub y: f32,
+    //current game sync tic
+    pub t: f32,
+}
+
+impl CoordinateSet {
+    pub fn get_byte_t(&self) -> Byte 
+    {
+        Byte::new(self.t as usize % BYTE_POSSIBLE_VALUES)
+    }
+
+    pub fn get_unfloat_t(&self) -> UNFloat 
+    {
+        UNFloat::new(self.get_byte_t().into_inner() as f32 / BYTE_POSSIBLE_VALUES as f32)
+    }
 }
