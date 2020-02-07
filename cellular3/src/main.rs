@@ -29,6 +29,7 @@ use ggez::input::keyboard;
 mod constants;
 mod datatype;
 mod node;
+mod preloader;
 mod updatestate;
 mod util;
 

@@ -12,10 +12,16 @@ use lazy_static::lazy_static;
 use mutagen::{Generatable, Mutatable};
 use rand::prelude::*;
 
-use crate::{constants::*, datatype::colors::IntColor, util};
+use crate::{constants::*, datatype::colors::IntColor, preloader::Preloader, util};
 
 lazy_static! {
-    pub static ref ALL_IMAGES: Vec<PathBuf> = util::collect_filenames(IMAGE_PATH);
+    static ref ALL_IMAGES: Vec<PathBuf> = util::collect_filenames(IMAGE_PATH);
+}
+
+thread_local! {
+     static IMAGE_PRELOADER: Preloader<Image> = Preloader::new(5, || Image::load_file(
+        ALL_IMAGES.choose(&mut thread_rng()).unwrap()
+    ));
 }
 
 pub struct Image {
@@ -53,8 +59,8 @@ impl Debug for Image {
 }
 
 impl Generatable for Image {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        Self::load_file(ALL_IMAGES.choose(rng).unwrap())
+    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R) -> Self {
+        IMAGE_PRELOADER.with(|p| p.get_next())
     }
 }
 
