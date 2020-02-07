@@ -1,8 +1,8 @@
 use std::{ffi::OsStr, fs::File, io::BufReader, path::Path};
 
-use image::{gif, AnimationDecoder, DynamicImage, RgbImage};
+use image::{gif, imageops, AnimationDecoder, DynamicImage, FilterType, RgbImage};
 
-use crate::datatype::colors::IntColor;
+use crate::{constants::*, datatype::colors::IntColor};
 
 pub struct Image {
     frames: Vec<RgbImage>,
@@ -37,9 +37,21 @@ fn load_frames(filename: &Path) -> image::ImageResult<Vec<RgbImage>> {
             .into_frames()
             .collect_frames()?
             .into_iter()
-            .map(|f| DynamicImage::ImageRgba8(f.into_buffer()).to_rgb())
+            .map(|f| {
+                imageops::resize(
+                    &DynamicImage::ImageRgba8(f.into_buffer()).to_rgb(),
+                    CELL_ARRAY_WIDTH as u32,
+                    CELL_ARRAY_HEIGHT as u32,
+                    FilterType::Gaussian,
+                )
+            })
             .collect())
     } else {
-        Ok(vec![image::open(&filename)?.to_rgb()])
+        Ok(vec![imageops::resize(
+            &image::open(&filename)?.to_rgb(),
+            CELL_ARRAY_WIDTH as u32,
+            CELL_ARRAY_HEIGHT as u32,
+            FilterType::Gaussian,
+        )])
     }
 }
