@@ -12,19 +12,6 @@ pub struct UpdateState<'a> {
     pub cell_array: ArrayView2<'a, FloatColor>,
 }
 
-impl<'a> UpdateState<'a> {
-    fn get_coord_shifted(self, shift_x: f32, shift_y: f32, shift_t: f32) -> Self {
-        UpdateState {
-            coordinate_set: CoordinateSet {
-                x: self.coordinate_set.x + shift_x,
-                y: self.coordinate_set.y + shift_y,
-                t: self.coordinate_set.t + shift_t,
-            },
-            cell_array: self.cell_array,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct CoordinateSet {
     //coordinates of update position
@@ -36,6 +23,14 @@ pub struct CoordinateSet {
 }
 
 impl CoordinateSet {
+    pub fn get_coord_shifted(self, shift_x: f32, shift_y: f32, shift_t: f32) -> Self {
+        CoordinateSet {
+            x: self.x + shift_x,
+            y: self.y + shift_y,
+            t: self.t + shift_t,
+        }
+    }
+
     pub fn get_byte_t(&self) -> Byte {
         Byte::new(self.t as usize % BYTE_POSSIBLE_VALUES)
     }
