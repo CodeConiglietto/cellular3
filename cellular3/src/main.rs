@@ -1,4 +1,5 @@
 use std::{
+    fs,
     iter::Sum,
     ops::{Add, AddAssign, Div},
 };
@@ -92,7 +93,9 @@ impl MyGame {
             *RNG_SEED.lock().unwrap() = seed;
         }
 
-        let rng = DeterministicRng::new();
+        fs::write("last_seed.txt", &RNG_SEED.lock().unwrap().to_string()).unwrap();
+
+        let mut rng = DeterministicRng::new();
 
         MyGame {
             // ...
@@ -153,7 +156,7 @@ impl MyGame {
             //     color_table: Array2::from_shape_fn((2, 2), |_| get_random_color()),
             // },
             root_node: Box::new(
-                FloatColorNodes::generate(),
+                FloatColorNodes::generate_rng(&mut rng),
                 // PalletteColorNodes::EqColor {
                 //     child_a: Box::new(PalletteColorNodes::FromUNFloat {
                 //         child: UNFloatNodes::FromSNFloat {
@@ -414,7 +417,7 @@ impl EventHandler for MyGame {
 
             if self.tree_dirty || self.rng.gen_bool(0.01) {
                 println!("====TIC: {} MUTATING TREE====", self.current_sync_tic);
-                self.root_node.mutate();
+                self.root_node.mutate_rng(&mut self.rng);
                 println!("{:#?}", &self.root_node);
                 self.tree_dirty = false;
             }
