@@ -26,11 +26,11 @@ impl CoordinateSet {
     pub fn get_coord_shifted(self, shift_x: SNFloat, shift_y: SNFloat, shift_t: SNFloat) -> Self {
         CoordinateSet {
             x: self.x.circular_add(shift_x),
-            y: self.y.circular_add(shift_x),
+            y: self.y.circular_add(shift_y),
             t: self.t + shift_t.into_inner(),
         }
     }
-    
+
     pub fn get_coord_scaled(self, scale_x: SNFloat, scale_y: SNFloat, scale_t: SNFloat) -> Self {
         CoordinateSet {
             x: SNFloat::new(self.x.into_inner() * scale_x.into_inner()),

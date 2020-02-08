@@ -28,4 +28,11 @@ pub const MAX_COLORS: usize = 8;
 
 pub const PARALLELIZE: bool = true;
 
-pub const MAX_TREE_DEPTH: usize = 10;
+pub const MIN_LEAF_DEPTH: usize = 1;
+pub const MAX_LEAF_DEPTH: usize = 1000;
+
+pub const MIN_PIPE_DEPTH: usize = 1;
+pub const MAX_PIPE_DEPTH: usize = 10;
+
+pub const MIN_BRANCH_DEPTH: usize = 0;
+pub const MAX_BRANCH_DEPTH: usize = 5;
