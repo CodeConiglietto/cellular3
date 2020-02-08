@@ -413,8 +413,8 @@ impl EventHandler for MyGame {
             // };
 
             if self.tree_dirty || self.rng.gen_bool(0.01) {
+                println!("====TIC: {} MUTATING TREE====", self.current_sync_tic);
                 self.root_node.mutate();
-                println!("====MUTATING TREE====");
                 println!("{:#?}", &self.root_node);
                 self.tree_dirty = false;
             }

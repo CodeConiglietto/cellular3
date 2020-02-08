@@ -1,9 +1,9 @@
 pub const TICS_PER_UPDATE: i32 = 15;
 
-pub const INITIAL_WINDOW_WIDTH: f32 = 1600.0;
+pub const INITIAL_WINDOW_WIDTH: f32 = 900.0;
 pub const INITIAL_WINDOW_HEIGHT: f32 = 900.0;
 
-pub const CELL_ARRAY_WIDTH: usize = 400;
+pub const CELL_ARRAY_WIDTH: usize = 225;
 pub const CELL_ARRAY_HEIGHT: usize = 225;
 
 pub const NOISE_X_SCALE_FACTOR: f64 = 0.1;

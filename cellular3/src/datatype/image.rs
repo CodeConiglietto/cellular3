@@ -86,7 +86,14 @@ impl Image {
     }
 
     pub fn get_pixel(&self, x: u32, y: u32, t: u32) -> IntColor {
-        (*self.frames[t as usize % self.frames.len()].get_pixel(x, y)).into()
+        let frame_count = self.frames.len();
+        let t_value = ((t as usize % frame_count) + frame_count) % frame_count;
+        
+        let image_width = self.frames[t_value].width();
+        let image_height = self.frames[t_value].height();
+
+        //TODO refactor into helper method
+        (*self.frames[t_value].get_pixel(((x % image_width) + image_width) % image_width, ((y % image_height) + image_height) % image_height)).into()
     }
 }
 
