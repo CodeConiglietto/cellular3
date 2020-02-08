@@ -52,10 +52,11 @@ impl Node for CoordMapNodes {
                 CoordinateSet
                 {
                     //Represents the angle from 0.0..1.0
+                    //atan2(y, x) is correct. Don't ask me why.
                     x: Angle::new(
-                        f32::atan(
-                            state_x / 
-                            state_y)).to_signed(), 
+                        f32::atan2(
+                            state_y, 
+                            state_x)).to_signed(), 
                     //Represents the radius between 0.0..1.0
                     y: SNFloat::new(f32::sqrt(
                         state.coordinate_set.x.into_inner().powf(2.0) + 
