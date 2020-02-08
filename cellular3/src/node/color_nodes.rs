@@ -199,8 +199,8 @@ impl Node for IntColorNodes {
         match self {
             Constant { value } => *value,
             FromImage { image } => image.get_pixel_normalised(
-                state.coordinate_set.x.into_inner(),
-                state.coordinate_set.y.into_inner(),
+                state.coordinate_set.x,
+                state.coordinate_set.y,
                 state.coordinate_set.t,
             ),
             ModifyState { child, child_state } => child.compute(UpdateState {

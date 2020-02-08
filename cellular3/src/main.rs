@@ -337,8 +337,8 @@ impl EventHandler for MyGame {
 
             let new_color = root_node.compute(UpdateState {
                 coordinate_set: CoordinateSet {
-                    x: SNFloat::new(x as f32 / CELL_ARRAY_WIDTH as f32),
-                    y: SNFloat::new((y + slice_y as usize) as f32 / CELL_ARRAY_WIDTH as f32),
+                    x: UNFloat::new(x as f32 / CELL_ARRAY_WIDTH as f32).to_signed(),
+                    y: UNFloat::new((y + slice_y as usize) as f32 / CELL_ARRAY_WIDTH as f32).to_signed(),
                     t: current_sync_tic as f32,
                 },
                 cell_array: cell_array_view,

@@ -6,8 +6,8 @@ pub const INITIAL_WINDOW_HEIGHT: f32 = 900.0;
 pub const CELL_ARRAY_WIDTH: usize = 225;
 pub const CELL_ARRAY_HEIGHT: usize = 225;
 
-pub const NOISE_X_SCALE_FACTOR: f64 = 0.1;
-pub const NOISE_Y_SCALE_FACTOR: f64 = 0.1;
+pub const NOISE_X_SCALE_FACTOR: f64 = 1.0;
+pub const NOISE_Y_SCALE_FACTOR: f64 = 1.0;
 pub const NOISE_T_SCALE_FACTOR: f64 = 1.0;
 pub const _NOISE_X_SCALE_MINIMUM: f64 = 0.001;
 pub const _NOISE_Y_SCALE_MINIMUM: f64 = 0.001;
@@ -26,4 +26,4 @@ pub const _MAX_NEIGHBOUR_COUNT: i32 = 8; //Use this for total neighbours excludi
 //color consts
 pub const MAX_COLORS: usize = 8;
 
-pub const PARALLELIZE: bool = true;
+pub const PARALLELIZE: bool = false;

@@ -12,7 +12,7 @@ use rand::prelude::*;
 
 use crate::{
     constants::*,
-    datatype::colors::IntColor,
+    datatype::{colors::IntColor, continuous::*},
     preloader::{Generator, Preloader},
     util::{self, DeterministicRng},
 };
@@ -101,7 +101,7 @@ impl Image {
     }
 
     //get a pixel from coords (-1.0..1.0, -1.0..1.0, 0.0..infinity)
-    pub fn get_pixel_normalised(&self, x: f32, y: f32, t: f32) -> IntColor {
+    pub fn get_pixel_normalised(&self, x: SNFloat, y: SNFloat, t: f32) -> IntColor {
         let frame_count = self.frames.len();
         let t_value = ((t as usize % frame_count) + frame_count) % frame_count;
 
@@ -109,8 +109,8 @@ impl Image {
         let image_height = self.frames[t_value].height() as f32;
 
         self.get_pixel_wrapped(
-            ((x + 1.0) * 0.5 * image_width) as u32, 
-            ((y + 1.0) * 0.5 * image_height) as u32, 
+            (x.to_unsigned().into_inner() * image_width) as u32, 
+            (y.to_unsigned().into_inner() * image_height) as u32, 
             t_value as u32)
     }
 }
