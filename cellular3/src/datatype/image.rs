@@ -3,6 +3,7 @@ use std::{
     fs::File,
     io::{BufRead, BufReader, Cursor, Seek},
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use image::{gif, imageops, AnimationDecoder, DynamicImage, FilterType, ImageFormat, RgbImage};
@@ -62,20 +63,22 @@ impl Generator for RandomImageLoader {
             })
         } else {
             println!("Loading image from fallback data");
-            (*FALLBACK_IMAGE).clone()
+            FALLBACK_IMAGE.clone()
         }
     }
 }
 
 #[derive(Clone)]
-pub struct Image {
+pub struct Image(Arc<ImageData>);
+
+pub struct ImageData {
     name: String,
     frames: Vec<RgbImage>,
 }
 
 impl Image {
     pub fn new(name: String, frames: Vec<RgbImage>) -> Self {
-        Self { name, frames }
+        Self(Arc::new(ImageData { name, frames }))
     }
 
     pub fn load_file<P: AsRef<Path>>(path: P) -> image::ImageResult<Self> {
@@ -97,14 +100,14 @@ impl Image {
     }
 
     pub fn get_pixel_wrapped(&self, x: u32, y: u32, t: u32) -> IntColor {
-        let frame_count = self.frames.len();
+        let frame_count = self.0.frames.len();
         let t_value = ((t as usize % frame_count) + frame_count) % frame_count;
 
-        let image_width = self.frames[t_value].width();
-        let image_height = self.frames[t_value].height();
+        let image_width = self.0.frames[t_value].width();
+        let image_height = self.0.frames[t_value].height();
 
         //TODO refactor into helper method
-        (*self.frames[t_value].get_pixel(
+        (*self.0.frames[t_value].get_pixel(
             ((x % image_width) + image_width) % image_width,
             ((y % image_height) + image_height) % image_height,
         ))
@@ -113,11 +116,11 @@ impl Image {
 
     //get a pixel from coords (-1.0..1.0, -1.0..1.0, 0.0..infinity)
     pub fn get_pixel_normalised(&self, x: SNFloat, y: SNFloat, t: f32) -> IntColor {
-        let frame_count = self.frames.len();
+        let frame_count = self.0.frames.len();
         let t_value = ((t as usize % frame_count) + frame_count) % frame_count;
 
-        let image_width = self.frames[t_value].width() as f32;
-        let image_height = self.frames[t_value].height() as f32;
+        let image_width = self.0.frames[t_value].width() as f32;
+        let image_height = self.0.frames[t_value].height() as f32;
 
         self.get_pixel_wrapped(
             (x.to_unsigned().into_inner() * image_width) as u32,
@@ -159,8 +162,8 @@ fn load_frames<R: BufRead + Seek>(
 impl Debug for Image {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("Image")
-            .field("name", &self.name.len())
-            .field("frames", &self.frames.len())
+            .field("name", &self.0.name.len())
+            .field("frames", &self.0.frames.len())
             .finish()
     }
 }
@@ -168,7 +171,9 @@ impl Debug for Image {
 impl Generatable for Image {
     fn generate_rng<R: Rng + ?Sized>(_rng: &mut R, _state: mutagen::State) -> Self {
         println!("Generating new image");
-        IMAGE_PRELOADER.with(|p| p.get_next())
+        IMAGE_PRELOADER
+            .with(|p| p.try_get_next())
+            .unwrap_or_else(|| FALLBACK_IMAGE.clone())
     }
 }
 
