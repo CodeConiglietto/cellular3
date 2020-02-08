@@ -41,7 +41,10 @@ impl Node for CoordMapNodes {
                 CoordinateSet
                 {
                     //Represents the angle from 0.0..1.0
-                    x: SNFloat::new(f32::atan(state.coordinate_set.y.into_inner() / state.coordinate_set.x.into_inner())), 
+                    x: Angle::new(
+                        f32::atan(
+                            state.coordinate_set.y.into_inner() / 
+                            state.coordinate_set.x.into_inner())).to_signed(), 
                     //Represents the radius between 0.0..1.0
                     y: SNFloat::new(f32::sqrt(
                         state.coordinate_set.x.into_inner().powf(2.0) + 

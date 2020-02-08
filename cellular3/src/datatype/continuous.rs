@@ -87,7 +87,7 @@ impl SNFloat {
         UNFloat::new_from_range(self.value, -1.0, 1.0)
     }
 
-    pub fn add_wrapped(self, other: SNFloat) -> SNFloat {
+    pub fn circular_add(self, other: SNFloat) -> SNFloat {
         let total = self.into_inner() + other.into_inner();
         SNFloat::new(total - total.floor())
     }

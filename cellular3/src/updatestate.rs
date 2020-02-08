@@ -25,8 +25,8 @@ pub struct CoordinateSet {
 impl CoordinateSet {
     pub fn get_coord_shifted(self, shift_x: SNFloat, shift_y: SNFloat, shift_t: SNFloat) -> Self {
         CoordinateSet {
-            x: SNFloat::new(self.x.into_inner() + shift_x.into_inner()),
-            y: SNFloat::new(self.y.into_inner() + shift_y.into_inner()),
+            x: self.x.circular_add(shift_x),
+            y: self.y.circular_add(shift_x),
             t: self.t + shift_t.into_inner(),
         }
     }
