@@ -14,9 +14,11 @@ impl UNFloat {
     }
 
     pub fn new(value: f32) -> Self {
-        assert!(value >= 0.0, "value: {}", value);
-        assert!(value <= 1.0, "value: {}", value);
-
+        assert!(
+            value >= 0.0 && value <= 1.0,
+            "Invalid UNFloat value: {}",
+            value
+        );
         Self::new_unchecked(value)
     }
 
@@ -60,8 +62,11 @@ impl SNFloat {
     }
 
     pub fn new(value: f32) -> Self {
-        assert!(value >= -1.0);
-        assert!(value <= 1.0);
+        assert!(
+            value >= -1.0 && value <= 1.0,
+            "Invalid SNFloat value: {}",
+            value
+        );
 
         Self::new_unchecked(value)
     }
@@ -80,6 +85,11 @@ impl SNFloat {
 
     pub fn to_unsigned(self) -> UNFloat {
         UNFloat::new_from_range(self.value, -1.0, 1.0)
+    }
+
+    pub fn add_wrapped(self, other: SNFloat) -> SNFloat {
+        let total = self.into_inner() + other.into_inner();
+        SNFloat::new(total - total.floor())
     }
 }
 
@@ -154,28 +164,34 @@ fn map_range(value: f32, from: (f32, f32), to: (f32, f32)) -> f32 {
 
     assert!(
         from_min < from_max,
-        "from_min: {}, from_max: {}",
+        "Invalid range argument to map_range: from_min: {}, from_max: {}",
         from_min,
         from_max
     );
     assert!(
-        from_min <= value,
-        "from_min: {}, value: {}",
+        from_min <= value && value <= from_max,
+        "Invalid value argument to map_range: from_min: {}, from_max: {} value: {}",
         from_min,
+        from_max,
         value
     );
     assert!(
-        value <= from_max,
-        "value: {}, from_max: {}",
-        value,
-        from_max
+        to_min < to_max,
+        "Invalid range argument to map_range: to_min: {}, to_max: {}",
+        to_min,
+        to_max
     );
-    assert!(to_min < to_max, "to_min: {}, to_max: {}", to_min, to_max);
 
     let out = ((value - from_min) / (from_max - from_min)) * (to_max - to_min) + to_min;
 
-    debug_assert!(to_min <= out);
-    debug_assert!(out <= to_max);
+    debug_assert!(
+        to_min <= out && out <= to_max,
+        "Internal error in map_range: value: {}, from: {:?}, to: {:?}, out: {:?}",
+        value,
+        from,
+        to,
+        out
+    );
 
     out
 }

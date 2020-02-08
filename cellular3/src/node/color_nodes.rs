@@ -1,9 +1,9 @@
 use palette::{encoding::srgb::Srgb, rgb::Rgb, Hsv, RgbHue};
 
 use crate::{
-    constants::MAX_COLORS,
+    constants::*,
     datatype::{colors::*, image::*},
-    node::{primitive_nodes::*, coord_map_nodes::*, Node},
+    node::{coord_map_nodes::*, primitive_nodes::*, Node},
     updatestate::UpdateState,
 };
 use mutagen::{Generatable, Mutatable};
@@ -35,7 +35,7 @@ pub enum FloatColorNodes {
     ModifyState {
         child: Box<FloatColorNodes>,
         child_state: Box<CoordMapNodes>,
-    }
+    },
 }
 
 // This function assumes an x and y between the ranges -dim().<dimension>..infinity
@@ -85,13 +85,16 @@ impl Node for FloatColorNodes {
             FromCellArray => {
                 let (x, y) = wrap_point_to_cell_array(
                     state.cell_array.view(),
-                    state.coordinate_set.x as usize,
-                    state.coordinate_set.y as usize,
+                    ((state.coordinate_set.x.into_inner() + 1.0) * 0.5 * CELL_ARRAY_WIDTH as f32) as usize,
+                    ((state.coordinate_set.y.into_inner() + 1.0) * 0.5 * CELL_ARRAY_HEIGHT as f32) as usize,
                 );
                 state.cell_array[[x as usize, y as usize]]
             }
             FromPalletteColor { child } => FloatColor::from(child.compute(state)),
-            ModifyState { child, child_state } => child.compute(UpdateState{ coordinate_set: child_state.compute(state), cell_array: state.cell_array}),
+            ModifyState { child, child_state } => child.compute(UpdateState {
+                coordinate_set: child_state.compute(state),
+                cell_array: state.cell_array,
+            }),
             FromIntColor { child } => FloatColor::from(child.compute(state)),
         }
     }
@@ -163,7 +166,10 @@ impl Node for PalletteColorNodes {
                 g.compute(state).into_inner(),
                 b.compute(state).into_inner(),
             ]),
-            ModifyState { child, child_state } => child.compute(UpdateState{ coordinate_set: child_state.compute(state), cell_array: state.cell_array}),
+            ModifyState { child, child_state } => child.compute(UpdateState {
+                coordinate_set: child_state.compute(state),
+                cell_array: state.cell_array,
+            }),
             FromFloatColor { child } => PalletteColor::from_float_color(child.compute(state)),
         }
     }
@@ -172,12 +178,16 @@ impl Node for PalletteColorNodes {
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
 pub enum IntColorNodes {
-    Constant { value: IntColor },
-    FromImage { image: Image },
+    Constant {
+        value: IntColor,
+    },
+    FromImage {
+        image: Image,
+    },
     ModifyState {
         child: Box<IntColorNodes>,
         child_state: Box<CoordMapNodes>,
-    }
+    },
 }
 
 impl Node for IntColorNodes {
@@ -188,12 +198,15 @@ impl Node for IntColorNodes {
 
         match self {
             Constant { value } => *value,
-            FromImage { image } => image.get_pixel(
-                state.coordinate_set.x as u32,
-                state.coordinate_set.y as u32,
-                state.coordinate_set.t as u32,
+            FromImage { image } => image.get_pixel_normalised(
+                state.coordinate_set.x.into_inner(),
+                state.coordinate_set.y.into_inner(),
+                state.coordinate_set.t,
             ),
-            ModifyState { child, child_state } => child.compute(UpdateState{ coordinate_set: child_state.compute(state), cell_array: state.cell_array}),
+            ModifyState { child, child_state } => child.compute(UpdateState {
+                coordinate_set: child_state.compute(state),
+                cell_array: state.cell_array,
+            }),
         }
     }
 }

@@ -1,4 +1,3 @@
-use crate::constants::*;
 use mutagen::{Generatable, Mutatable};
 
 use rand::prelude::*;
@@ -28,17 +27,15 @@ impl Mutatable for Boolean {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Byte {
-    pub value: usize,
+    pub value: u8,
 }
 
 impl Byte {
-    pub fn new(value: usize) -> Self {
-        assert!(value <= BYTE_MAX_VALUE);
-
+    pub fn new(value: u8) -> Self {
         Self { value }
     }
 
-    pub fn into_inner(self) -> usize {
+    pub fn into_inner(self) -> u8 {
         self.value
     }
 }
@@ -46,7 +43,7 @@ impl Byte {
 impl Generatable for Byte {
     fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
         Byte {
-            value: rng.gen_range(0, BYTE_POSSIBLE_VALUES),
+            value: rng.gen::<u8>(),
         }
     }
 }

@@ -131,10 +131,10 @@ impl Node for SNFloatNodes {
             FromUNFloat { child } => child.compute(state).to_signed(),
             Constant { value } => *value,
             BasicMultiFractalNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x as f64
+                state.coordinate_set.x.into_inner() as f64
                     * noise.x_scale.into_inner().powf(2.0) as f64
                     * NOISE_X_SCALE_FACTOR,
-                state.coordinate_set.y as f64
+                state.coordinate_set.y.into_inner() as f64
                     * noise.y_scale.into_inner().powf(2.0) as f64
                     * NOISE_Y_SCALE_FACTOR,
                 state.coordinate_set.t as f64
@@ -142,10 +142,10 @@ impl Node for SNFloatNodes {
                     * NOISE_T_SCALE_FACTOR,
             ]) as f32),
             BillowNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x as f64
+                state.coordinate_set.x.into_inner() as f64
                     * noise.x_scale.into_inner().powf(2.0) as f64
                     * NOISE_X_SCALE_FACTOR,
-                state.coordinate_set.y as f64
+                state.coordinate_set.y.into_inner() as f64
                     * noise.y_scale.into_inner().powf(2.0) as f64
                     * NOISE_Y_SCALE_FACTOR,
                 state.coordinate_set.t as f64
@@ -153,10 +153,10 @@ impl Node for SNFloatNodes {
                     * NOISE_T_SCALE_FACTOR,
             ]) as f32),
             CheckerboardNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x as f64
+                state.coordinate_set.x.into_inner() as f64
                     * noise.x_scale.into_inner().powf(2.0) as f64
                     * NOISE_X_SCALE_FACTOR,
-                state.coordinate_set.y as f64
+                state.coordinate_set.y.into_inner() as f64
                     * noise.y_scale.into_inner().powf(2.0) as f64
                     * NOISE_Y_SCALE_FACTOR,
                 state.coordinate_set.t as f64
@@ -164,10 +164,10 @@ impl Node for SNFloatNodes {
                     * NOISE_T_SCALE_FACTOR,
             ]) as f32),
             FractalBrownianNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x as f64
+                state.coordinate_set.x.into_inner() as f64
                     * noise.x_scale.into_inner().powf(2.0) as f64
                     * NOISE_X_SCALE_FACTOR,
-                state.coordinate_set.y as f64
+                state.coordinate_set.y.into_inner() as f64
                     * noise.y_scale.into_inner().powf(2.0) as f64
                     * NOISE_Y_SCALE_FACTOR,
                 state.coordinate_set.t as f64
@@ -175,10 +175,10 @@ impl Node for SNFloatNodes {
                     * NOISE_T_SCALE_FACTOR,
             ]) as f32),
             HybridMultiFractalNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x as f64
+                state.coordinate_set.x.into_inner() as f64
                     * noise.x_scale.into_inner().powf(2.0) as f64
                     * NOISE_X_SCALE_FACTOR,
-                state.coordinate_set.y as f64
+                state.coordinate_set.y.into_inner() as f64
                     * noise.y_scale.into_inner().powf(2.0) as f64
                     * NOISE_Y_SCALE_FACTOR,
                 state.coordinate_set.t as f64
@@ -186,10 +186,10 @@ impl Node for SNFloatNodes {
                     * NOISE_T_SCALE_FACTOR,
             ]) as f32),
             OpenSimplexNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x as f64
+                state.coordinate_set.x.into_inner() as f64
                     * noise.x_scale.into_inner().powf(2.0) as f64
                     * NOISE_X_SCALE_FACTOR,
-                state.coordinate_set.y as f64
+                state.coordinate_set.y.into_inner() as f64
                     * noise.y_scale.into_inner().powf(2.0) as f64
                     * NOISE_Y_SCALE_FACTOR,
                 state.coordinate_set.t as f64
@@ -197,10 +197,10 @@ impl Node for SNFloatNodes {
                     * NOISE_T_SCALE_FACTOR,
             ]) as f32),
             RidgedMultiFractalNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x as f64
+                state.coordinate_set.x.into_inner() as f64
                     * noise.x_scale.into_inner().powf(2.0) as f64
                     * NOISE_X_SCALE_FACTOR,
-                state.coordinate_set.y as f64
+                state.coordinate_set.y.into_inner() as f64
                     * noise.y_scale.into_inner().powf(2.0) as f64
                     * NOISE_Y_SCALE_FACTOR,
                 state.coordinate_set.t as f64
@@ -208,10 +208,10 @@ impl Node for SNFloatNodes {
                     * NOISE_T_SCALE_FACTOR,
             ]) as f32),
             SuperSimplexNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x as f64
+                state.coordinate_set.x.into_inner() as f64
                     * noise.x_scale.into_inner().powf(2.0) as f64
                     * NOISE_X_SCALE_FACTOR,
-                state.coordinate_set.y as f64
+                state.coordinate_set.y.into_inner() as f64
                     * noise.y_scale.into_inner().powf(2.0) as f64
                     * NOISE_Y_SCALE_FACTOR,
                 state.coordinate_set.t as f64
@@ -219,10 +219,10 @@ impl Node for SNFloatNodes {
                     * NOISE_T_SCALE_FACTOR,
             ]) as f32),
             ValueNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x as f64
+                state.coordinate_set.x.into_inner() as f64
                     * noise.x_scale.into_inner().powf(2.0) as f64
                     * NOISE_X_SCALE_FACTOR,
-                state.coordinate_set.y as f64
+                state.coordinate_set.y.into_inner() as f64
                     * noise.y_scale.into_inner().powf(2.0) as f64
                     * NOISE_Y_SCALE_FACTOR,
                 state.coordinate_set.t as f64
@@ -233,10 +233,10 @@ impl Node for SNFloatNodes {
                 noise
                     .noise
                     .get([
-                        state.coordinate_set.x as f64
+                        state.coordinate_set.x.into_inner() as f64
                             * noise.x_scale.into_inner().powf(2.0) as f64
                             * NOISE_X_SCALE_FACTOR,
-                        state.coordinate_set.y as f64
+                        state.coordinate_set.y.into_inner() as f64
                             * noise.y_scale.into_inner().powf(2.0) as f64
                             * NOISE_Y_SCALE_FACTOR,
                         state.coordinate_set.t as f64
@@ -250,14 +250,10 @@ impl Node for SNFloatNodes {
             ),
             Abs { child } => SNFloat::new(child.compute(state).into_inner().abs()),
             XRatio => {
-                let width = state.cell_array.dim().0 as f32;
-
-                SNFloat::new_from_range(state.coordinate_set.x as f32, 0.0, width)
+                state.coordinate_set.x
             }
             YRatio => {
-                let height = state.cell_array.dim().1 as f32;
-
-                SNFloat::new_from_range(state.coordinate_set.y as f32, 0.0, height)
+                state.coordinate_set.y
             }
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
@@ -309,8 +305,6 @@ pub enum UNFloatNodes {
     ColorComponentB {
         child: Box<FloatColorNodes>,
     },
-    XRatio,
-    YRatio,
     ModifyState {
         child: Box<UNFloatNodes>,
         child_state: Box<CoordMapNodes>,
@@ -346,16 +340,6 @@ impl Node for UNFloatNodes {
             ColorComponentR { child } => UNFloat::new(child.compute(state).r),
             ColorComponentG { child } => UNFloat::new(child.compute(state).g),
             ColorComponentB { child } => UNFloat::new(child.compute(state).b),
-            XRatio => {
-                let width = state.cell_array.dim().0 as f32;
-
-                UNFloat::new(state.coordinate_set.x as f32 / width)
-            }
-            YRatio => {
-                let height = state.cell_array.dim().1 as f32;
-
-                UNFloat::new(state.coordinate_set.y as f32 / height)
-            }
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
                 cell_array: state.cell_array,

@@ -25,7 +25,7 @@ lazy_static! {
 }
 
 thread_local! {
-    static IMAGE_PRELOADER: Preloader<Image> = Preloader::new(10, RandomImageLoader::new());
+    static IMAGE_PRELOADER: Preloader<Image> = Preloader::new(2, RandomImageLoader::new());
 }
 
 const FALLBACK_IMAGE_DATA: &[u8] =
@@ -85,7 +85,7 @@ impl Image {
         Ok(Self::new(load_frames(reader, format)?))
     }
 
-    pub fn get_pixel(&self, x: u32, y: u32, t: u32) -> IntColor {
+    pub fn get_pixel_wrapped(&self, x: u32, y: u32, t: u32) -> IntColor {
         let frame_count = self.frames.len();
         let t_value = ((t as usize % frame_count) + frame_count) % frame_count;
 
@@ -98,6 +98,20 @@ impl Image {
             ((y % image_height) + image_height) % image_height,
         ))
         .into()
+    }
+
+    //get a pixel from coords (-1.0..1.0, -1.0..1.0, 0.0..infinity)
+    pub fn get_pixel_normalised(&self, x: f32, y: f32, t: f32) -> IntColor {
+        let frame_count = self.frames.len();
+        let t_value = ((t as usize % frame_count) + frame_count) % frame_count;
+
+        let image_width = self.frames[t_value].width() as f32;
+        let image_height = self.frames[t_value].height() as f32;
+
+        self.get_pixel_wrapped(
+            ((x + 1.0) * 0.5 * image_width) as u32, 
+            ((y + 1.0) * 0.5 * image_height) as u32, 
+            t_value as u32)
     }
 }
 
@@ -140,12 +154,14 @@ impl Debug for Image {
 
 impl Generatable for Image {
     fn generate_rng<R: Rng + ?Sized>(_rng: &mut R) -> Self {
+        println!("Generating new image");
         IMAGE_PRELOADER.with(|p| p.get_next())
     }
 }
 
 impl Mutatable for Image {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
+        println!("Mutating image");
         *self = Self::generate_rng(rng);
     }
 }

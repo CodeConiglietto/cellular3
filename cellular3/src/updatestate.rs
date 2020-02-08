@@ -16,23 +16,31 @@ pub struct UpdateState<'a> {
 pub struct CoordinateSet {
     //coordinates of update position
     //Needs to be floating point to allow for proper scaling
-    pub x: f32,
-    pub y: f32,
+    pub x: SNFloat,
+    pub y: SNFloat,
     //current game sync tic
     pub t: f32,
 }
 
 impl CoordinateSet {
-    pub fn get_coord_shifted(self, shift_x: f32, shift_y: f32, shift_t: f32) -> Self {
+    pub fn get_coord_shifted(self, shift_x: SNFloat, shift_y: SNFloat, shift_t: SNFloat) -> Self {
         CoordinateSet {
-            x: self.x + shift_x,
-            y: self.y + shift_y,
-            t: self.t + shift_t,
+            x: SNFloat::new(self.x.into_inner() + shift_x.into_inner()),
+            y: SNFloat::new(self.y.into_inner() + shift_y.into_inner()),
+            t: self.t + shift_t.into_inner(),
+        }
+    }
+    
+    pub fn get_coord_scaled(self, scale_x: SNFloat, scale_y: SNFloat, scale_t: SNFloat) -> Self {
+        CoordinateSet {
+            x: SNFloat::new(self.x.into_inner() * scale_x.into_inner()),
+            y: SNFloat::new(self.y.into_inner() * scale_y.into_inner()),
+            t: self.t * scale_t.into_inner(),
         }
     }
 
     pub fn get_byte_t(&self) -> Byte {
-        Byte::new(self.t as usize % BYTE_POSSIBLE_VALUES)
+        Byte::new((self.t as u64 % BYTE_POSSIBLE_VALUES as u64) as u8)
     }
 
     pub fn get_unfloat_t(&self) -> UNFloat {
