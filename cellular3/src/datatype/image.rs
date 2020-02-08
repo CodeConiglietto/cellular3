@@ -159,6 +159,7 @@ fn load_frames<R: BufRead + Seek>(
 impl Debug for Image {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("Image")
+            .field("name", &self.name.len())
             .field("frames", &self.frames.len())
             .finish()
     }
