@@ -38,19 +38,23 @@ impl Node for CoordMapNodes {
                         SNFloat::new(1.0))
             },
             ToPolar => 
+            {
+                let state_x = state.coordinate_set.x.into_inner();
+                let state_y = state.coordinate_set.y.into_inner();
+
                 CoordinateSet
                 {
                     //Represents the angle from 0.0..1.0
                     x: Angle::new(
                         f32::atan(
-                            state.coordinate_set.y.into_inner() / 
-                            state.coordinate_set.x.into_inner())).to_signed(), 
+                            state_x / 
+                            state_y)).to_signed(), 
                     //Represents the radius between 0.0..1.0
                     y: SNFloat::new(f32::sqrt(
                         state.coordinate_set.x.into_inner().powf(2.0) + 
                         state.coordinate_set.y.into_inner().powf(2.0)).min(1.0)),
                     t: state.coordinate_set.t
-                },
+                }},
             FromPolar => 
                 CoordinateSet
                 {
