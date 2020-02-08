@@ -1,5 +1,5 @@
 use std::{
-    sync::mpsc::{self, Receiver},
+    sync::mpsc::{self, Receiver, TryRecvError},
     thread::{self, JoinHandle},
 };
 
@@ -31,6 +31,14 @@ where
 
     pub fn get_next(&self) -> T {
         self.receiver.recv().unwrap()
+    }
+
+    pub fn try_get_next(&self) -> Option<T> {
+        match self.receiver.try_recv() {
+            Ok(item) => Some(item),
+            Err(TryRecvError::Empty) => None,
+            Err(TryRecvError::Disconnected) => panic!("Worker thread disconnected"),
+        }
     }
 }
 
