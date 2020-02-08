@@ -12,7 +12,7 @@ pub struct IntColor {
 }
 
 impl Generatable for IntColor {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: mutagen::State) -> Self {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, _state: mutagen::State) -> Self {
         Self {
             r: rng.gen(),
             g: rng.gen(),
@@ -234,12 +234,12 @@ impl PalletteColor {
 }
 
 impl Generatable for PalletteColor {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: mutagen::State) -> Self {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, _state: mutagen::State) -> Self {
         Self::from_components([rng.gen(), rng.gen(), rng.gen()])
     }
 }
 impl Mutatable for PalletteColor {
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, state: mutagen::State) {
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, _state: mutagen::State) {
         let current_color = self.to_components();
         let mut new_color = [rng.gen(), rng.gen(), rng.gen()];
 

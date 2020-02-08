@@ -3,6 +3,8 @@ use std::f32::consts::PI;
 
 use rand::prelude::*;
 
+use crate::util::*;
+
 #[derive(Clone, Copy, Debug)]
 pub struct UNFloat {
     value: f32,
@@ -40,7 +42,7 @@ impl UNFloat {
 }
 
 impl Generatable for UNFloat {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: mutagen::State) -> Self {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, _state: mutagen::State) -> Self {
         Self::new_unchecked(rng.gen_range(0.0, 1.0))
     }
 }
@@ -94,7 +96,7 @@ impl SNFloat {
 }
 
 impl Generatable for SNFloat {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: mutagen::State) -> Self {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, _state: mutagen::State) -> Self {
         Self::new_unchecked(rng.gen_range(-1.0, 1.0))
     }
 }
@@ -146,7 +148,7 @@ impl Angle {
 }
 
 impl Generatable for Angle {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: mutagen::State) -> Self {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, _state: mutagen::State) -> Self {
         Angle::new_unchecked(rng.gen_range(0.0, 2.0 * PI))
     }
 }
@@ -155,45 +157,6 @@ impl Mutatable for Angle {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, state: mutagen::State) {
         *self = Self::generate_rng(rng, state);
     }
-}
-
-#[inline(always)]
-fn map_range(value: f32, from: (f32, f32), to: (f32, f32)) -> f32 {
-    let (from_min, from_max) = from;
-    let (to_min, to_max) = to;
-
-    assert!(
-        from_min < from_max,
-        "Invalid range argument to map_range: from_min: {}, from_max: {}",
-        from_min,
-        from_max
-    );
-    assert!(
-        from_min <= value && value <= from_max,
-        "Invalid value argument to map_range: from_min: {}, from_max: {} value: {}",
-        from_min,
-        from_max,
-        value
-    );
-    assert!(
-        to_min < to_max,
-        "Invalid range argument to map_range: to_min: {}, to_max: {}",
-        to_min,
-        to_max
-    );
-
-    let out = ((value - from_min) / (from_max - from_min)) * (to_max - to_min) + to_min;
-
-    debug_assert!(
-        to_min <= out && out <= to_max,
-        "Internal error in map_range: value: {}, from: {:?}, to: {:?}, out: {:?}",
-        value,
-        from,
-        to,
-        out
-    );
-
-    out
 }
 
 #[cfg(test)]

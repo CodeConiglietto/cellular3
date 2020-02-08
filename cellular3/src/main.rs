@@ -19,7 +19,7 @@ use structopt::StructOpt;
 
 use crate::{
     constants::*,
-    datatype::{colors::FloatColor, continuous::*},
+    datatype::{colors::FloatColor, continuous::*, image::IMAGE_PRELOADER},
     node::{color_nodes::FloatColorNodes, Node},
     opts::Opts,
     updatestate::*,
@@ -46,6 +46,9 @@ fn main() {
         .expect("Could not create ggez context!");
 
     let mut my_game = MyGame::new(&mut ctx, opts);
+
+    // Eagerly initialize the image preloader rather than waiting for the first time it's used
+    IMAGE_PRELOADER.with(|_| ());
 
     match event::run(&mut ctx, &mut event_loop, &mut my_game) {
         Ok(_) => println!("Exited cleanly."),
@@ -338,7 +341,8 @@ impl EventHandler for MyGame {
             let new_color = root_node.compute(UpdateState {
                 coordinate_set: CoordinateSet {
                     x: UNFloat::new(x as f32 / CELL_ARRAY_WIDTH as f32).to_signed(),
-                    y: UNFloat::new((y + slice_y as usize) as f32 / CELL_ARRAY_WIDTH as f32).to_signed(),
+                    y: UNFloat::new((y + slice_y as usize) as f32 / CELL_ARRAY_WIDTH as f32)
+                        .to_signed(),
                     t: current_sync_tic as f32,
                 },
                 cell_array: cell_array_view,

@@ -29,7 +29,7 @@ lazy_static! {
 }
 
 thread_local! {
-    static IMAGE_PRELOADER: Preloader<Image> = Preloader::new(10, RandomImageLoader::new());
+    pub static IMAGE_PRELOADER: Preloader<Image> = Preloader::new(10, RandomImageLoader::new());
 }
 
 const FALLBACK_IMAGE_DATA: &[u8] =

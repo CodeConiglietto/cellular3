@@ -14,7 +14,7 @@ impl Boolean {
 }
 
 impl Generatable for Boolean {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: mutagen::State) -> Self {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, _state: mutagen::State) -> Self {
         Boolean { value: rng.gen() }
     }
 }
@@ -41,10 +41,8 @@ impl Byte {
 }
 
 impl Generatable for Byte {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: mutagen::State) -> Self {
-        Byte {
-            value: rng.gen::<u8>(),
-        }
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, _state: mutagen::State) -> Self {
+        Byte { value: rng.gen() }
     }
 }
 
