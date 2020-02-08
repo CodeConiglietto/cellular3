@@ -3,7 +3,7 @@ extern crate proc_macro;
 use std::{borrow::Cow, collections::HashMap};
 
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::quote;
+use quote::{format_ident, quote, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
@@ -83,67 +83,23 @@ fn generatable_enum(
         ));
     }
 
-    let weights: Vec<_> = e
-        .variants
-        .iter()
-        .map(|v| {
-            let attrs = parse_attrs(&v.attrs, a::ENUM_VARIANT)?;
-            let weight = attrs.get(a::GEN_WEIGHT).copied().unwrap_or(1.0);
-
-            if weight < 0.0 {
-                return Err(Error::new(
-                    v.span(),
-                    format!("Invalid variant gen_weight: {}", weight),
-                ));
-            }
-
-            Ok(weight)
-        })
-        .collect::<Result<_>>()?;
-
-    let total_weight: f64 = weights.iter().sum();
-
-    if total_weight <= 0.0 {
-        return Err(Error::new(span, "Sum of variant gen_weight values is 0"));
-    }
-
-    let roll: TokenStream2 = quote! {
-        let roll: f64 = rng.gen_range(0.0, #total_weight);
-    };
-
-    let mut top = 0.0;
-
-    let variants: TokenStream2 = e
-        .variants
-        .iter()
-        .zip(weights.iter())
-        .filter(|(_, weight)| **weight > 0.0)
-        .map(|(variant, weight)| {
-            let range_start = top;
-            let range_end = top + weight;
-
-            top += weight;
-
+    roll(
+        &e.variants.iter().collect::<Vec<_>>(),
+        |variant| {
+            Ok(parse_attrs(&variant.attrs, a::ENUM_VARIANT)?
+                .get(a::GEN_WEIGHT)
+                .cloned()
+                .unwrap_or(Value::None))
+        },
+        |variant, _| {
             let ident = &variant.ident;
             let fields = generatable_fields(&variant.fields);
-
-            let out: TokenStream2 = quote! {
-                if roll >= #range_start && roll < #range_end {
+            quote! {
                     return #enum_ident::#ident #fields;
-                }
-            };
-
-            out
-        })
-        .collect();
-
-    let enum_ident_s = enum_ident.to_string();
-
-    Ok(quote! {
-        #roll
-        #variants
-        unreachable!("Failed to roll variant to generate for {}. Rolled {}, total weight is {}", #enum_ident_s, roll, #total_weight);
-    })
+            }
+        },
+        &format!("Generation for {}", enum_ident),
+    )
 }
 
 fn generatable_fields(fields: &Fields) -> TokenStream2 {
@@ -222,54 +178,39 @@ fn mutatable_enum(
     enum_ident: &Ident,
     e: &DataEnum,
     attrs: &[Attribute],
-    span: Span,
+    _span: Span,
 ) -> Result<TokenStream2> {
     if e.variants.is_empty() {
         panic!("Cannot derive Mutatable for enum with no variants");
     }
 
     let attrs = parse_attrs(attrs, a::ENUM)?;
-    let mut_reroll_enum = attrs.get(a::MUT_REROLL).copied().unwrap_or(0.5);
-
-    if mut_reroll_enum < 0.0 || mut_reroll_enum > 1.0 {
-        return Err(Error::new(
-            span,
-            &format!(
-                "Invalid mut_reroll attribute on enum {} ({}). Should be between 0.0 and 1.0 inclusive.",
-                enum_ident, mut_reroll_enum
-            ),
-        ));
-    }
+    let mut_reroll_enum = attrs
+        .get(a::MUT_REROLL)
+        .cloned()
+        .unwrap_or(Value::None)
+        .to_prob()?;
 
     let variants: Vec<_> = e
         .variants
         .iter()
         .map(|variant| {
             let variant_attrs = parse_attrs(&variant.attrs, a::ENUM_VARIANT)?;
-            let mut_reroll = variant_attrs
-                .get(a::MUT_REROLL)
-                .copied()
-                .unwrap_or(mut_reroll_enum);
-
-            if mut_reroll < 0.0 || mut_reroll > 1.0 {
-                return Err(Error::new(
-                    span,
-                    &format!(
-                        "Invalid mut_reroll attribute on enum variant {}::{} ({}). Should be between 0.0 and 1.0 inclusive.",
-                        enum_ident, variant.ident, mut_reroll,
-                    ),
-                ));
-            }
+            let mut_reroll = if let Some(v) = variant_attrs.get(a::MUT_REROLL) {
+                v.to_prob()?
+            } else {
+                mut_reroll_enum.clone()
+            };
 
             let ident = &variant.ident;
             let bindings = fields_bindings(&variant.fields);
             let fields_body = mutatable_fields(
                 &flatten_fields(&variant.fields),
                 &format!("{}::{}", &enum_ident, &variant.ident),
-                variant.fields.span()
+                variant.fields.span(),
             )?;
 
-            let out: TokenStream2 = if mut_reroll > 0.0 {
+            let out: TokenStream2 = if let Some(mut_reroll) = mut_reroll {
                 quote! {
                     #enum_ident::#ident #bindings => {
                         if rng.sample(::rand::distributions::Bernoulli::new(#mut_reroll).unwrap()) {
@@ -323,64 +264,90 @@ fn mutatable_fields(fields: &[&Field], path: &str, _span: Span) -> Result<TokenS
         return Ok(TokenStream2::new());
     }
 
-    let weights: Vec<_> = fields
-        .iter()
-        .map(|field| {
-            let attrs = parse_attrs(&field.attrs, a::FIELD)?;
-            let weight = attrs.get(a::MUT_WEIGHT).copied().unwrap_or(1.0);
-
-            if weight < 0.0 {
-                return Err(Error::new(
-                    field.span(),
-                    format!("Invalid field mut_weight: {}", weight),
-                ));
+    roll(
+        fields,
+        |field| {
+            Ok(parse_attrs(&field.attrs, a::FIELD)?
+                .get(a::MUT_WEIGHT)
+                .cloned()
+                .unwrap_or(Value::None))
+        },
+        |field, i| {
+            let ident = field_ident(field, i);
+            quote! {
+                ::mutagen::Mutatable::mutate_rng(#ident, rng);
+                return;
             }
+        },
+        &format!("mutation for {}", path),
+    )
+}
 
-            Ok(weight)
-        })
-        .collect::<Result<_>>()?;
+fn roll<T, Wf, Bf>(choices: &[T], weight_fn: Wf, body_fn: Bf, err: &str) -> Result<TokenStream2>
+where
+    Wf: Fn(&T) -> Result<Value>,
+    Bf: Fn(&T, usize) -> TokenStream2,
+{
+    let n = choices.len();
 
-    let total_weight: f64 = weights.iter().sum();
-
-    if total_weight <= 0.0 {
-        return Ok(TokenStream2::new());
+    if n == 0 {
+        panic!("roll was called with 0 choices");
+    } else if n == 1 {
+        return Ok(body_fn(&choices[0], 0));
     }
 
-    let roll: TokenStream2 = quote! {
-        let roll: f64 = rng.gen_range(0.0, #total_weight);
-    };
+    let weight_values: Vec<_> = choices.iter().map(weight_fn).collect::<Result<_>>()?;
 
-    let mut top = 0.0;
+    let weights: Vec<Option<TokenStream2>> = weight_values
+        .iter()
+        .map(Value::to_weight)
+        .collect::<Result<_>>()?;
 
-    let fields_out: TokenStream2 = fields
+    let cumul_idents: Vec<Ident> = (0..n)
+        .map(|i| format_ident!("cumul_weights_{}", i))
+        .collect();
+
+    let cumul_sum: TokenStream2 = cumul_idents
+        .windows(2)
+        .enumerate()
+        .map(|(i, w)| {
+            let pre = &w[0];
+            let ident = &w[1];
+            quote! {
+                let #ident: f64 = #pre + weights[#i + 1];
+            }
+        })
+        .collect();
+
+    let checks: TokenStream2 = choices
         .iter()
         .zip(weights.iter())
-        .filter(|(_, weight)| **weight > 0.0)
         .enumerate()
-        .map(|(i, (field, weight))| {
-            let range_start = top;
-            let range_end = top + weight;
-
-            top += weight;
-
-            let ident = field_ident(field, i);
-
-            let out: TokenStream2 = quote! {
-
-                if roll >= #range_start && roll < #range_end {
-                    ::mutagen::Mutatable::mutate_rng(#ident, rng);
-                    return;
-                }
-            };
-
-            out
+        .filter(|(_, (_, weight))| weight.is_some())
+        .map(|(i, (choice, _))| {
+            let body = body_fn(choice, i);
+            quote! { if roll < cumul_weights[#i] { #body }}
         })
         .collect();
 
     Ok(quote! {
-        #roll
-        #fields_out
-        unreachable!("Failed to roll field to mutate in {}. Rolled {}, total weight is {}", #path, roll, #total_weight)
+        let weights: [f64; #n] = [
+            #(#weights),*
+        ];
+
+        let cumul_weights_0: f64 = weights[0];
+        #cumul_sum
+
+        let cumul_weights: [f64; #n] = [
+            #(#cumul_idents),*
+        ];
+
+        let total_weight = cumul_weights[#n - 1];
+        let roll: f64 = rng.gen_range(0.0, total_weight);
+
+        #checks
+
+        unreachable!("Failed to roll {}. Rolled {}, total weight is {}", #err, roll, total_weight)
     })
 }
 
@@ -422,7 +389,7 @@ impl Parse for AttrsData {
 struct KeyValue {
     key: Ident,
     _eq: Token![=],
-    value: LitFloat,
+    value: Value,
 }
 
 impl Parse for KeyValue {
@@ -435,7 +402,84 @@ impl Parse for KeyValue {
     }
 }
 
-type Attrs = HashMap<String, f64>;
+#[derive(Clone)]
+enum Value {
+    Lit(LitFloat),
+    FnIdent(Ident),
+    None,
+}
+
+impl Value {
+    fn to_weight(&self) -> Result<Option<TokenStream2>> {
+        match self {
+            Value::Lit(lit) => {
+                let v: f64 = lit.base10_parse()?;
+
+                if v < 0.0 {
+                    Err(Error::new(lit.span(), "Invalid weight"))
+                } else if v == 0.0 {
+                    Ok(None)
+                } else {
+                    Ok(Some(lit.to_token_stream()))
+                }
+            }
+            Value::FnIdent(ident) => {
+                let ident_s = ident.to_string();
+
+                Ok(Some(quote! {
+                {
+                    let value = #ident ();
+                    assert!(value >= 0.0, "{} returned invalid weight {}", #ident_s, value);
+                    value
+                }
+                }))
+            }
+            Value::None => Ok(Some(quote!(1.0))),
+        }
+    }
+
+    fn to_prob(&self) -> Result<Option<TokenStream2>> {
+        match self {
+            Value::Lit(lit) => {
+                let v: f64 = lit.base10_parse()?;
+                if v < 0.0 || v > 1.0 {
+                    Err(Error::new(lit.span(), "Invalid probability"))
+                } else if v == 0.0 {
+                    Ok(None)
+                } else {
+                    Ok(Some(lit.to_token_stream()))
+                }
+            }
+            Value::FnIdent(ident) => {
+                let ident_s = ident.to_string();
+
+                Ok(Some(quote! {
+                    {
+                        let value = #ident ();
+                        assert!(value >= 0.0, "{} returned invalid probability {}", #ident_s, value);
+                        value
+                    }
+                }))
+            }
+            Value::None => Ok(Some(quote!(0.5))),
+        }
+    }
+}
+
+impl Parse for Value {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(LitFloat) {
+            input.parse().map(Value::Lit)
+        } else if lookahead.peek(Ident) {
+            input.parse().map(Value::FnIdent)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+type Attrs = HashMap<String, Value>;
 
 fn parse_attrs(attributes: &[Attribute], allowed: &[&str]) -> Result<Attrs> {
     Ok(attributes
@@ -444,10 +488,9 @@ fn parse_attrs(attributes: &[Attribute], allowed: &[&str]) -> Result<Attrs> {
         .map(|attr| {
             let data: AttrsData = parse2(attr.tokens.clone())?;
             data.values
-                .iter()
+                .into_iter()
                 .map(|kv| {
                     let key = kv.key.to_string();
-                    let value: f64 = kv.value.base10_parse()?;
 
                     if !allowed.contains(&key.as_str()) {
                         return Err(Error::new(
@@ -459,7 +502,7 @@ fn parse_attrs(attributes: &[Attribute], allowed: &[&str]) -> Result<Attrs> {
                         ));
                     }
 
-                    Ok((key, value))
+                    Ok((key, kv.value))
                 })
                 .collect::<Result<Vec<_>>>()
         })
