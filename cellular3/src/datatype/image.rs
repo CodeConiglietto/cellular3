@@ -109,9 +109,10 @@ impl Image {
         let image_height = self.frames[t_value].height() as f32;
 
         self.get_pixel_wrapped(
-            ((x + 1.0) * 0.5 * image_width) as u32, 
-            ((y + 1.0) * 0.5 * image_height) as u32, 
-            t_value as u32)
+            ((x + 1.0) * 0.5 * image_width) as u32,
+            ((y + 1.0) * 0.5 * image_height) as u32,
+            t_value as u32,
+        )
     }
 }
 
@@ -153,15 +154,15 @@ impl Debug for Image {
 }
 
 impl Generatable for Image {
-    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R) -> Self {
+    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R, state: mutagen::State) -> Self {
         println!("Generating new image");
         IMAGE_PRELOADER.with(|p| p.get_next())
     }
 }
 
 impl Mutatable for Image {
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, state: mutagen::State) {
         println!("Mutating image");
-        *self = Self::generate_rng(rng);
+        *self = Self::generate_rng(rng, state);
     }
 }

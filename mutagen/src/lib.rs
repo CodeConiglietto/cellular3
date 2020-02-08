@@ -15,9 +15,10 @@
 //!
 //! # Attributes
 //!
-//! This crate makes extensive use of attributes to customize the behaviour of its derive macros.
-//!
-//! Here's a rather contrived example that showcases all of the above:
+//! This crate makes extensive use of key-value pairs in attributes to customize the behaviour of its derive macros.
+//! Key-value pairs are always contained inside a #[mutagen()], as shown in the example below.
+//! Both floating point literals and function names are allowed as values.
+//! When a function name is used, its signature should be `fn(&mutagen::State) -> f64`
 //!
 //! ```rust
 //! use mutagen::{Generatable, Mutatable};
@@ -39,12 +40,25 @@
 //!      // a mutates twice as often as b
 //!      #[mutagen(mut_weight = 0.5)]
 //!      a: Baz,
+//!
 //!      b: Baz,
+//!
+//!      // c mutates only if it's at depth 2 or deeper
+//!      #[mutagen(mut_weight = 1.0)]
+//!      c: Baz,
 //!   },
 //!
 //!   // This variant will never generate, so its fields don't need to implement Generatable
 //!   #[mutagen(gen_weight = 0.0)]
 //!   Boo(NotGeneratable),
+//! }
+//!
+//! fn depth_at_least_2(state: &mutagen::State) -> f64 {
+//!   if state.depth >= 2 {
+//!     1.0
+//!   } else {
+//!     0.0
+//!   }
 //! }
 //!
 //! #[derive(Mutatable)]
@@ -98,39 +112,53 @@ use std::{ops::DerefMut, rc::Rc, sync::Arc};
 
 use rand::Rng;
 
+#[derive(Clone, Copy, Default)]
+pub struct State {
+    pub depth: usize,
+}
+
+impl State {
+    pub fn deepen(self) -> Self {
+        Self {
+            depth: self.depth + 1,
+            ..self
+        }
+    }
+}
+
 /// A trait denoting that the type may be randomly generated
 ///
 /// For more information, consult the [crate docs](crate).
 pub trait Generatable: Sized {
     /// Convenience shorthand for `Self::generate_rng(&mut rand::thread_rng())`
     fn generate() -> Self {
-        Self::generate_rng(&mut rand::thread_rng())
+        Self::generate_rng(&mut rand::thread_rng(), State::default())
     }
 
     /// The main required method for generation
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self;
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: State) -> Self;
 }
 
 impl<T: Generatable> Generatable for Box<T> {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        Box::new(T::generate_rng(rng))
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: State) -> Self {
+        Box::new(T::generate_rng(rng, state))
     }
 }
 
 impl<T: Generatable> Generatable for Rc<T> {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        Rc::new(T::generate_rng(rng))
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: State) -> Self {
+        Rc::new(T::generate_rng(rng, state))
     }
 }
 
 impl<T: Generatable> Generatable for Arc<T> {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        Arc::new(T::generate_rng(rng))
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: State) -> Self {
+        Arc::new(T::generate_rng(rng, state))
     }
 }
 
 impl Generatable for () {
-    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R) -> Self {
+    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R, _state: State) -> Self {
         ()
     }
 }
@@ -150,22 +178,23 @@ impl Generatable for () {
 ///
 pub trait Mutatable {
     fn mutate(&mut self) {
-        self.mutate_rng(&mut rand::thread_rng())
+        self.mutate_rng(&mut rand::thread_rng(), State::default())
     }
 
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R);
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, state: State);
 }
 
 impl<T: Mutatable> Mutatable for Box<T> {
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        self.deref_mut().mutate_rng(rng)
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, state: State) {
+        self.deref_mut().mutate_rng(rng, state)
     }
 }
 
 impl Mutatable for () {
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, _rng: &mut R) {}
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, _rng: &mut R, _state: State) {}
 }
 
+/*
 #[cfg(test)]
 mod test {
     use super::*;
@@ -200,3 +229,4 @@ mod test {
     #[derive(Generatable, Mutatable)]
     struct Bap(Bar, Bar);
 }
+*/

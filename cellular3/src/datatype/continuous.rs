@@ -40,14 +40,14 @@ impl UNFloat {
 }
 
 impl Generatable for UNFloat {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: mutagen::State) -> Self {
         Self::new_unchecked(rng.gen_range(0.0, 1.0))
     }
 }
 
 impl Mutatable for UNFloat {
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        *self = Self::generate_rng(rng);
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, state: mutagen::State) {
+        *self = Self::generate_rng(rng, state);
     }
 }
 
@@ -94,14 +94,14 @@ impl SNFloat {
 }
 
 impl Generatable for SNFloat {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: mutagen::State) -> Self {
         Self::new_unchecked(rng.gen_range(-1.0, 1.0))
     }
 }
 
 impl Mutatable for SNFloat {
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        *self = Self::generate_rng(rng);
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, state: mutagen::State) {
+        *self = Self::generate_rng(rng, state);
     }
 }
 
@@ -146,14 +146,14 @@ impl Angle {
 }
 
 impl Generatable for Angle {
-    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R, state: mutagen::State) -> Self {
         Angle::new_unchecked(rng.gen_range(0.0, 2.0 * PI))
     }
 }
 
 impl Mutatable for Angle {
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        *self = Self::generate_rng(rng);
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, state: mutagen::State) {
+        *self = Self::generate_rng(rng, state);
     }
 }
 

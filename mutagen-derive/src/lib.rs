@@ -45,7 +45,7 @@ pub fn derive_generatable(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 
     let output: TokenStream2 = quote! {
         impl ::mutagen::Generatable for #ident {
-            fn generate_rng<R: ::mutagen::rand::Rng + ?Sized>(rng: &mut R) -> Self {
+            fn generate_rng<R: ::mutagen::rand::Rng + ?Sized>(rng: &mut R, state: ::mutagen::State) -> Self {
                 #body
             }
         }
@@ -109,7 +109,7 @@ fn generatable_fields(fields: &Fields) -> TokenStream2 {
 
             quote! {
                 {
-                    #(#name: ::mutagen::Generatable::generate_rng(rng)),*
+                    #(#name: ::mutagen::Generatable::generate_rng(rng, state.deepen())),*
                 }
             }
         }
@@ -117,7 +117,7 @@ fn generatable_fields(fields: &Fields) -> TokenStream2 {
             let item: Vec<TokenStream2> = f
                 .unnamed
                 .iter()
-                .map(|_| quote! { ::mutagen::Generatable::generate_rng(rng) })
+                .map(|_| quote! { ::mutagen::Generatable::generate_rng(rng, state.deepen()) })
                 .collect();
 
             quote! {
@@ -146,7 +146,7 @@ pub fn derive_mutatable(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 
     let output: TokenStream2 = quote! {
         impl ::mutagen::Mutatable for #ident {
-            fn mutate_rng<R: ::mutagen::rand::Rng + ?Sized>(&mut self, rng: &mut R) {
+            fn mutate_rng<R: ::mutagen::rand::Rng + ?Sized>(&mut self, rng: &mut R, state: ::mutagen::State) {
                 #body
             }
         }
@@ -214,7 +214,7 @@ fn mutatable_enum(
                 quote! {
                     #enum_ident::#ident #bindings => {
                         if rng.sample(::rand::distributions::Bernoulli::new(#mut_reroll).unwrap()) {
-                            *self = ::mutagen::Generatable::generate();
+                            *self = ::mutagen::Generatable::generate_rng(rng, state);
                         } else {
                             #fields_body
                         }
@@ -275,7 +275,7 @@ fn mutatable_fields(fields: &[&Field], path: &str, _span: Span) -> Result<TokenS
         |field, i| {
             let ident = field_ident(field, i);
             quote! {
-                ::mutagen::Mutatable::mutate_rng(#ident, rng);
+                ::mutagen::Mutatable::mutate_rng(#ident, rng, state.deepen());
                 return;
             }
         },
@@ -298,10 +298,15 @@ where
 
     let weight_values: Vec<_> = choices.iter().map(weight_fn).collect::<Result<_>>()?;
 
-    let weights: Vec<Option<TokenStream2>> = weight_values
+    let weights_opt: Vec<Option<TokenStream2>> = weight_values
         .iter()
         .map(Value::to_weight)
         .collect::<Result<_>>()?;
+
+    let weights: Vec<TokenStream2> = weights_opt
+        .iter()
+        .map(|w| w.as_ref().cloned().unwrap_or(quote!(0.0)))
+        .collect();
 
     let cumul_idents: Vec<Ident> = (0..n)
         .map(|i| format_ident!("cumul_weights_{}", i))
@@ -321,7 +326,7 @@ where
 
     let checks: TokenStream2 = choices
         .iter()
-        .zip(weights.iter())
+        .zip(weights_opt.iter())
         .enumerate()
         .filter(|(_, (_, weight))| weight.is_some())
         .map(|(i, (choice, _))| {
@@ -428,7 +433,7 @@ impl Value {
 
                 Ok(Some(quote! {
                 {
-                    let value = #ident ();
+                    let value = #ident (&state);
                     assert!(value >= 0.0, "{} returned invalid weight {}", #ident_s, value);
                     value
                 }
@@ -455,7 +460,7 @@ impl Value {
 
                 Ok(Some(quote! {
                     {
-                        let value = #ident ();
+                        let value = #ident (&state);
                         assert!(value >= 0.0, "{} returned invalid probability {}", #ident_s, value);
                         value
                     }
