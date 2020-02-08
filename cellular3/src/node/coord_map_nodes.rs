@@ -45,14 +45,14 @@ impl Node for CoordMapNodes {
                     //Represents the radius between 0.0..1.0
                     y: SNFloat::new(f32::sqrt(
                         state.coordinate_set.x.into_inner().powf(2.0) + 
-                        state.coordinate_set.y.into_inner().powf(2.0))),
+                        state.coordinate_set.y.into_inner().powf(2.0)).min(1.0)),
                     t: state.coordinate_set.t
                 },
             FromPolar => 
                 CoordinateSet
                 {
-                    x: SNFloat::new(state.coordinate_set.y.into_inner() * f32::cos(state.coordinate_set.x.into_inner())), 
-                    y: SNFloat::new(state.coordinate_set.y.into_inner() * f32::sin(state.coordinate_set.x.into_inner())), 
+                    x: SNFloat::new((state.coordinate_set.y.into_inner() * f32::cos(state.coordinate_set.x.into_inner())).min(1.0).max(-1.0)), 
+                    y: SNFloat::new((state.coordinate_set.y.into_inner() * f32::sin(state.coordinate_set.x.into_inner())).min(1.0).max(-1.0)), 
                     t: state.coordinate_set.t
                 }
         }
