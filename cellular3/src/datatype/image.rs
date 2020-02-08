@@ -19,9 +19,12 @@ use crate::{
 
 lazy_static! {
     static ref ALL_IMAGES: Vec<PathBuf> = util::collect_filenames(IMAGE_PATH);
-    static ref FALLBACK_IMAGE: Image =
-        Image::load(Cursor::new(FALLBACK_IMAGE_DATA), ImageFormat::PNG)
-            .unwrap_or_else(|e| panic!("Error loading fallback image: {}", e));
+    static ref FALLBACK_IMAGE: Image = Image::load(
+        String::from("<FALLBACK>"),
+        Cursor::new(FALLBACK_IMAGE_DATA),
+        ImageFormat::PNG
+    )
+    .unwrap_or_else(|e| panic!("Error loading fallback image: {}", e));
 }
 
 thread_local! {
@@ -66,23 +69,31 @@ impl Generator for RandomImageLoader {
 
 #[derive(Clone)]
 pub struct Image {
+    name: String,
     frames: Vec<RgbImage>,
 }
 
 impl Image {
-    pub fn new(frames: Vec<RgbImage>) -> Self {
-        Self { frames }
+    pub fn new(name: String, frames: Vec<RgbImage>) -> Self {
+        Self { name, frames }
     }
 
     pub fn load_file<P: AsRef<Path>>(path: P) -> image::ImageResult<Self> {
-        Ok(Self::new(load_frames(
-            BufReader::new(File::open(&path)?),
-            ImageFormat::from_path(&path)?,
-        )?))
+        Ok(Self::new(
+            path.as_ref().to_string_lossy().into_owned(),
+            load_frames(
+                BufReader::new(File::open(&path)?),
+                ImageFormat::from_path(&path)?,
+            )?,
+        ))
     }
 
-    pub fn load<R: BufRead + Seek>(reader: R, format: ImageFormat) -> image::ImageResult<Self> {
-        Ok(Self::new(load_frames(reader, format)?))
+    pub fn load<R: BufRead + Seek>(
+        name: String,
+        reader: R,
+        format: ImageFormat,
+    ) -> image::ImageResult<Self> {
+        Ok(Self::new(name, load_frames(reader, format)?))
     }
 
     pub fn get_pixel_wrapped(&self, x: u32, y: u32, t: u32) -> IntColor {
@@ -109,9 +120,10 @@ impl Image {
         let image_height = self.frames[t_value].height() as f32;
 
         self.get_pixel_wrapped(
-            (x.to_unsigned().into_inner() * image_width) as u32, 
-            (y.to_unsigned().into_inner() * image_height) as u32, 
-            t_value as u32)
+            (x.to_unsigned().into_inner() * image_width) as u32,
+            (y.to_unsigned().into_inner() * image_height) as u32,
+            t_value as u32,
+        )
     }
 }
 
@@ -153,7 +165,7 @@ impl Debug for Image {
 }
 
 impl Generatable for Image {
-    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R, state: mutagen::State) -> Self {
+    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R, _state: mutagen::State) -> Self {
         println!("Generating new image");
         IMAGE_PRELOADER.with(|p| p.get_next())
     }
