@@ -1,7 +1,7 @@
 use crate::{
     constants::*,
     datatype::{continuous::*, discrete::*, noisefunctions::*},
-    node::{color_nodes::*, Node},
+    node::{color_nodes::*, Node, coord_map_nodes::*},
     updatestate::*,
 };
 use mutagen::{Generatable, Mutatable};
@@ -16,6 +16,10 @@ pub enum AngleNodes {
     Constant { value: Angle },
     FromSNFloat { child: Box<SNFloatNodes> },
     FromUNFloat { child: Box<UNFloatNodes> },
+    ModifyState {
+        child: Box<AngleNodes>,
+        child_state: Box<CoordMapNodes>,
+    },
 }
 
 impl Node for AngleNodes {
@@ -31,6 +35,7 @@ impl Node for AngleNodes {
             Constant { value } => *value,
             FromSNFloat { child } => child.compute(state).to_angle(),
             FromUNFloat { child } => child.compute(state).to_angle(),
+            ModifyState { child, child_state } => child.compute(UpdateState{ coordinate_set: child_state.compute(state), cell_array: state.cell_array}),
         }
     }
 }
@@ -93,6 +98,10 @@ pub enum SNFloatNodes {
     },
     XRatio,
     YRatio,
+    ModifyState {
+        child: Box<SNFloatNodes>,
+        child_state: Box<CoordMapNodes>,
+    },
 }
 
 impl Node for SNFloatNodes {
@@ -182,43 +191,8 @@ impl Node for SNFloatNodes {
                 let height = state.cell_array.dim().1 as f32;
 
                 SNFloat::new_from_range(state.coordinate_set.y as f32, 0.0, height)
-            }
-            // CoordinateTranslateX { child, x } => child.compute(UpdateState {
-            //     x: state.x + x.compute(state).into_inner(),
-            //     y: state.y,
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateTranslateY { child, y } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y + y.compute(state).into_inner(),
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateTranslateT { child, t } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y,
-            //     t: state.t + t.compute(state).into_inner(),
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleX { child, x } => child.compute(UpdateState {
-            //     x: (state.x * x.compute(state).into_inner()),
-            //     y: state.y,
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleY { child, y } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: (state.y * y.compute(state).into_inner()),
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleT { child, t } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y,
-            //     t: (state.t * t.compute(state).into_inner()),
-            //     cell_array: state.cell_array,
-            // }),
+            },
+            ModifyState { child, child_state } => child.compute(UpdateState{ coordinate_set: child_state.compute(state), cell_array: state.cell_array}),
         }
     }
 }
@@ -267,30 +241,10 @@ pub enum UNFloatNodes {
     },
     XRatio,
     YRatio,
-    // CoordinateTranslateX {
-    //     child: Box<UNFloatNodes>,
-    //     x: Box<SNFloatNodes>,
-    // },
-    // CoordinateTranslateY {
-    //     child: Box<UNFloatNodes>,
-    //     y: Box<SNFloatNodes>,
-    // },
-    // CoordinateTranslateT {
-    //     child: Box<UNFloatNodes>,
-    //     t: Box<SNFloatNodes>,
-    // },
-    // CoordinateScaleX {
-    //     child: Box<UNFloatNodes>,
-    //     x: Box<UNFloatNodes>,
-    // },
-    // CoordinateScaleY {
-    //     child: Box<UNFloatNodes>,
-    //     y: Box<UNFloatNodes>,
-    // },
-    // CoordinateScaleT {
-    //     child: Box<UNFloatNodes>,
-    //     t: Box<UNFloatNodes>,
-    // },
+    ModifyState {
+        child: Box<UNFloatNodes>,
+        child_state: Box<CoordMapNodes>,
+    },
 }
 
 impl Node for UNFloatNodes {
@@ -331,56 +285,11 @@ impl Node for UNFloatNodes {
                 let height = state.cell_array.dim().1 as f32;
 
                 UNFloat::new(state.coordinate_set.y as f32 / height)
-            }
-            // CoordinateTranslateX { child, x } => child.compute(UpdateState {
-            //     x: state.x + x.compute(state).into_inner(),
-            //     y: state.y,
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateTranslateY { child, y } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y + y.compute(state).into_inner(),
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateTranslateT { child, t } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y,
-            //     t: state.t + t.compute(state).into_inner(),
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleX { child, x } => child.compute(UpdateState {
-            //     x: (state.x * x.compute(state).into_inner()),
-            //     y: state.y,
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleY { child, y } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: (state.y * y.compute(state).into_inner()),
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleT { child, t } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y,
-            //     t: (state.t * t.compute(state).into_inner()),
-            //     cell_array: state.cell_array,
-            // }),
+            },
+            ModifyState { child, child_state } => child.compute(UpdateState{ coordinate_set: child_state.compute(state), cell_array: state.cell_array}),
         }
     }
 }
-
-// pub enum UnsignedIntNodes {
-//     Constant,
-//     Random,
-//     CurrentTic,
-// }
-
-// pub enum CoordinateTranslationNodes {
-//     ShiftBy,
-// }
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
@@ -401,7 +310,6 @@ pub enum BooleanNodes {
         child_a: Box<BooleanNodes>,
         child_b: Box<BooleanNodes>,
     },
-    //Xor {child_a: Boolean, child_b: Boolean},
     Not {
         child: Box<BooleanNodes>,
     },
@@ -409,30 +317,10 @@ pub enum BooleanNodes {
         child: Boolean,
     },
     Random,
-    // CoordinateTranslateX {
-    //     child: Box<BooleanNodes>,
-    //     x: Box<SNFloatNodes>,
-    // },
-    // CoordinateTranslateY {
-    //     child: Box<BooleanNodes>,
-    //     y: Box<SNFloatNodes>,
-    // },
-    // CoordinateTranslateT {
-    //     child: Box<BooleanNodes>,
-    //     t: Box<SNFloatNodes>,
-    // },
-    // CoordinateScaleX {
-    //     child: Box<BooleanNodes>,
-    //     x: Box<UNFloatNodes>,
-    // },
-    // CoordinateScaleY {
-    //     child: Box<BooleanNodes>,
-    //     y: Box<UNFloatNodes>,
-    // },
-    // CoordinateScaleT {
-    //     child: Box<BooleanNodes>,
-    //     t: Box<UNFloatNodes>,
-    // },
+    ModifyState {
+        child: Box<BooleanNodes>,
+        child_state: Box<CoordMapNodes>,
+    },
 }
 
 impl Node for BooleanNodes {
@@ -459,42 +347,7 @@ impl Node for BooleanNodes {
             },
             Constant { child } => *child,
             Random => Boolean::generate(),
-            // CoordinateTranslateX { child, x } => child.compute(UpdateState {
-            //     x: state.x + x.compute(state).into_inner(),
-            //     y: state.y,
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateTranslateY { child, y } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y + y.compute(state).into_inner(),
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateTranslateT { child, t } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y,
-            //     t: state.t + t.compute(state).into_inner(),
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleX { child, x } => child.compute(UpdateState {
-            //     x: (state.x * x.compute(state).into_inner()),
-            //     y: state.y,
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleY { child, y } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: (state.y * y.compute(state).into_inner()),
-            //     t: state.t,
-            //     cell_array: state.cell_array,
-            // }),
-            // CoordinateScaleT { child, t } => child.compute(UpdateState {
-            //     x: state.x,
-            //     y: state.y,
-            //     t: (state.t * t.compute(state).into_inner()),
-            //     cell_array: state.cell_array,
-            // }),
+            ModifyState { child, child_state } => child.compute(UpdateState{ coordinate_set: child_state.compute(state), cell_array: state.cell_array}),
         }
     }
 }

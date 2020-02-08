@@ -130,6 +130,10 @@ pub enum PalletteColorNodes {
     FromFloatColor {
         child: Box<FloatColorNodes>,
     },
+    ModifyState {
+        child: Box<PalletteColorNodes>,
+        child_state: Box<CoordMapNodes>,
+    },
 }
 
 impl Node for PalletteColorNodes {
@@ -159,6 +163,7 @@ impl Node for PalletteColorNodes {
                 g.compute(state).into_inner(),
                 b.compute(state).into_inner(),
             ]),
+            ModifyState { child, child_state } => child.compute(UpdateState{ coordinate_set: child_state.compute(state), cell_array: state.cell_array}),
             FromFloatColor { child } => PalletteColor::from_float_color(child.compute(state)),
         }
     }
@@ -167,7 +172,12 @@ impl Node for PalletteColorNodes {
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
 pub enum IntColorNodes {
+    Constant { value: IntColor },
     FromImage { image: Image },
+    ModifyState {
+        child: Box<IntColorNodes>,
+        child_state: Box<CoordMapNodes>,
+    }
 }
 
 impl Node for IntColorNodes {
@@ -177,11 +187,13 @@ impl Node for IntColorNodes {
         use IntColorNodes::*;
 
         match self {
+            Constant { value } => *value,
             FromImage { image } => image.get_pixel(
                 state.coordinate_set.x as u32,
                 state.coordinate_set.y as u32,
                 state.coordinate_set.t as u32,
             ),
+            ModifyState { child, child_state } => child.compute(UpdateState{ coordinate_set: child_state.compute(state), cell_array: state.cell_array}),
         }
     }
 }
