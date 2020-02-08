@@ -1,10 +1,17 @@
 use std::{
-    sync::mpsc::{self, Receiver, TryRecvError},
+    sync::{
+        mpsc::{self, Receiver, TryRecvError},
+        Arc, Mutex,
+    },
     thread::{self, JoinHandle},
 };
 
-pub struct Preloader<T> {
-    _worker_thread: JoinHandle<()>,
+pub struct Preloader<T>
+where
+    T: Send + 'static,
+{
+    worker_thread: Option<JoinHandle<()>>,
+    running: Arc<Mutex<bool>>,
     receiver: Receiver<T>,
 }
 
@@ -17,14 +24,18 @@ where
         G: Generator<Output = T> + Send + 'static,
     {
         let (sender, receiver) = mpsc::sync_channel(pool_size);
-        let _worker_thread = thread::spawn(move || loop {
-            if sender.send(generator.generate()).is_err() {
+        let running = Arc::new(Mutex::new(true));
+        let running_worker = Arc::clone(&running);
+
+        let worker_thread = Some(thread::spawn(move || loop {
+            if sender.send(generator.generate()).is_err() || !*running_worker.lock().unwrap() {
                 break;
             }
-        });
+        }));
 
         Self {
-            _worker_thread,
+            worker_thread,
+            running,
             receiver,
         }
     }
@@ -39,6 +50,17 @@ where
             Err(TryRecvError::Empty) => None,
             Err(TryRecvError::Disconnected) => panic!("Worker thread disconnected"),
         }
+    }
+}
+
+impl<T> Drop for Preloader<T>
+where
+    T: Send + 'static,
+{
+    fn drop(&mut self) {
+        println!("Shutting down preloader thread");
+        *self.running.lock().unwrap() = false;
+        self.worker_thread.take().unwrap().join().unwrap();
     }
 }
 
