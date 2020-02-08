@@ -13,7 +13,7 @@ pub const _NOISE_X_SCALE_MINIMUM: f64 = 0.001;
 pub const _NOISE_Y_SCALE_MINIMUM: f64 = 0.001;
 pub const _NOISE_T_SCALE_MINIMUM: f64 = 0.5;
 
-pub const IMAGE_PATH: &str = "C:\\Users\\admin\\Documents\\Project Assets\\Cellular\\Images";
+pub const IMAGE_PATH: &str = "C:\\Users\\admin\\Documents\\Project Assets\\Cellular\\Images\\!WorkAppropriate";
 
 //primitive consts
 pub const BYTE_MAX_VALUE: u64 = 255;

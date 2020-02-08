@@ -17,6 +17,7 @@ pub enum AngleNodes {
     ArcCos { theta: Box<SNFloatNodes> },
 
     #[mutagen(gen_weight = leaf_node_weight)]
+    #[mutagen(mut_reroll = 0.9)]
     Random,
 
     #[mutagen(gen_weight = leaf_node_weight)]
@@ -274,6 +275,7 @@ impl Node for SNFloatNodes {
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
 pub enum UNFloatNodes {
+    #[mutagen(mut_reroll = 0.9)]
     Random,
     Constant {
         value: UNFloat,
@@ -381,6 +383,7 @@ pub enum BooleanNodes {
     Constant {
         child: Boolean,
     },
+    #[mutagen(mut_reroll = 0.9)]
     Random,
     ModifyState {
         child: Box<BooleanNodes>,
