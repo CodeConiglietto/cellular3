@@ -331,36 +331,44 @@ impl EventHandler for MyGame {
 
         let root_node = &self.root_node;
 
-        let _slice_update_stat: UpdateStat = ndarray::Zip::indexed(current_update_slice)
-            .and(new_update_slice)
-            .into_par_iter()
-            .map(|((x, y), current, new)| {
-                // let neighbour_result =
-                //     get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
+        let update_step = |x, y, current: &FloatColor, new: &mut FloatColor| {
+            // let neighbour_result =
+            //     get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
 
-                let new_color = root_node.compute(UpdateState {
-                    coordinate_set: CoordinateSet {
-                        x: SNFloat::new(x as f32 / CELL_ARRAY_WIDTH as f32),
-                        y: SNFloat::new((y + slice_y as usize) as f32 / CELL_ARRAY_WIDTH as f32),
-                        t: current_sync_tic as f32,
-                    },
-                    cell_array: cell_array_view,
-                }); //get_next_color(rule_sets, *current, neighbour_result.0);
+            let new_color = root_node.compute(UpdateState {
+                coordinate_set: CoordinateSet {
+                    x: SNFloat::new(x as f32 / CELL_ARRAY_WIDTH as f32),
+                    y: SNFloat::new((y + slice_y as usize) as f32 / CELL_ARRAY_WIDTH as f32),
+                    t: current_sync_tic as f32,
+                },
+                cell_array: cell_array_view,
+            }); //get_next_color(rule_sets, *current, neighbour_result.0);
 
-                let older_color = *new;
-                *new = new_color;
+            let older_color = *new;
+            *new = new_color;
 
-                UpdateStat {
-                    //Two checks are necessary to avoid two tic oscillators being counted as active cells
-                    active_cells: if new_color != older_color && new_color != *current {
-                        1
-                    } else {
-                        0
-                    },
-                    similar_neighbours: 0, //neighbour_result.1,
-                }
-            })
-            .sum();
+            UpdateStat {
+                //Two checks are necessary to avoid two tic oscillators being counted as active cells
+                active_cells: if new_color != older_color && new_color != *current {
+                    1
+                } else {
+                    0
+                },
+                similar_neighbours: 0, //neighbour_result.1,
+            }
+        };
+
+        let zip = ndarray::Zip::indexed(current_update_slice).and(new_update_slice);
+
+        let _slice_update_stat: UpdateStat = if PARALLELIZE {
+            zip.into_par_iter()
+                .map(|((x, y), current, new)| update_step(x, y, current, new))
+                .sum()
+        } else {
+            let mut stat = UpdateStat::default();
+            zip.apply(|(x, y), current, new| stat += update_step(x, y, current, new));
+            stat
+        };
 
         //self.rolling_update_stat_total += slice_update_stat;
 

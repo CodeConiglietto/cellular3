@@ -166,9 +166,10 @@ impl Mutatable for () {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, _rng: &mut R) {}
 }
 
-/*
 #[cfg(test)]
 mod test {
+    use super::*;
+
     #[derive(Generatable, Mutatable)]
     struct Foo {
         #[mutagen(mut_weight = 10.0)]
@@ -199,4 +200,3 @@ mod test {
     #[derive(Generatable, Mutatable)]
     struct Bap(Bar, Bar);
 }
-*/
