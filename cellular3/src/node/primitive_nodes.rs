@@ -1,7 +1,7 @@
 use crate::{
     constants::*,
     datatype::{continuous::*, discrete::*, noisefunctions::*},
-    node::{color_nodes::*, coord_map_nodes::*, Node},
+    node::{color_nodes::*, coord_map_nodes::*, mutagen_functions::*, Node},
     updatestate::*,
 };
 use mutagen::{Generatable, Mutatable};
@@ -10,22 +10,25 @@ use noise::NoiseFn;
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
 pub enum AngleNodes {
-    ArcSin {
-        theta: Box<SNFloatNodes>,
-    },
-    ArcCos {
-        theta: Box<SNFloatNodes>,
-    },
+    #[mutagen(gen_weight = pipe_node_weight)]
+    ArcSin { theta: Box<SNFloatNodes> },
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    ArcCos { theta: Box<SNFloatNodes> },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
     Random,
-    Constant {
-        value: Angle,
-    },
-    FromSNFloat {
-        child: Box<SNFloatNodes>,
-    },
-    FromUNFloat {
-        child: Box<UNFloatNodes>,
-    },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    Constant { value: Angle },
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    FromSNFloat { child: Box<SNFloatNodes> },
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    FromUNFloat { child: Box<UNFloatNodes> },
+
+    #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<AngleNodes>,
         child_state: Box<CoordMapNodes>,
@@ -56,61 +59,70 @@ impl Node for AngleNodes {
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
 pub enum SNFloatNodes {
-    Sin {
-        child: Box<AngleNodes>,
-    },
-    Cos {
-        child: Box<AngleNodes>,
-    },
+    #[mutagen(gen_weight = pipe_node_weight)]
+    Sin { child: Box<AngleNodes> },
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    Cos { child: Box<AngleNodes> },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
     Random,
-    Constant {
-        value: SNFloat,
-    },
-    FromAngle {
-        child: Box<AngleNodes>,
-    },
-    FromUNFloat {
-        child: Box<UNFloatNodes>,
-    },
-    BasicMultiFractalNoise {
-        noise: Box<BasicMultiFractalNoise>,
-    },
-    BillowNoise {
-        noise: Box<BasicMultiFractalNoise>,
-    },
-    CheckerboardNoise {
-        noise: Box<BasicMultiFractalNoise>,
-    },
-    FractalBrownianNoise {
-        noise: Box<FractalBrownianNoise>,
-    },
-    HybridMultiFractalNoise {
-        noise: Box<BasicMultiFractalNoise>,
-    },
-    OpenSimplexNoise {
-        noise: Box<OpenSimplexNoise>,
-    },
-    RidgedMultiFractalNoise {
-        noise: Box<RidgedMultiFractalNoise>,
-    },
-    SuperSimplexNoise {
-        noise: Box<SuperSimplexNoise>,
-    },
-    ValueNoise {
-        noise: Box<RidgedMultiFractalNoise>,
-    },
-    WorleyNoise {
-        noise: Box<WorleyNoise>,
-    },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    Constant { value: SNFloat },
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    FromAngle { child: Box<AngleNodes> },
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    FromUNFloat { child: Box<UNFloatNodes> },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    BasicMultiFractalNoise { noise: Box<BasicMultiFractalNoise> },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    BillowNoise { noise: Box<BasicMultiFractalNoise> },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    CheckerboardNoise { noise: Box<BasicMultiFractalNoise> },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    FractalBrownianNoise { noise: Box<FractalBrownianNoise> },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    HybridMultiFractalNoise { noise: Box<BasicMultiFractalNoise> },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    OpenSimplexNoise { noise: Box<OpenSimplexNoise> },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    RidgedMultiFractalNoise { noise: Box<RidgedMultiFractalNoise> },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    SuperSimplexNoise { noise: Box<SuperSimplexNoise> },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    ValueNoise { noise: Box<RidgedMultiFractalNoise> },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    WorleyNoise { noise: Box<WorleyNoise> },
+
+    #[mutagen(gen_weight = branch_node_weight)]
     Multiply {
         child_a: Box<SNFloatNodes>,
         child_b: Box<SNFloatNodes>,
     },
-    Abs {
-        child: Box<SNFloatNodes>,
-    },
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    Abs { child: Box<SNFloatNodes> },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
     XRatio,
+
+    #[mutagen(gen_weight = leaf_node_weight)]
     YRatio,
+
+    #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<SNFloatNodes>,
         child_state: Box<CoordMapNodes>,
@@ -249,12 +261,8 @@ impl Node for SNFloatNodes {
                 child_a.compute(state).into_inner() * child_b.compute(state).into_inner(),
             ),
             Abs { child } => SNFloat::new(child.compute(state).into_inner().abs()),
-            XRatio => {
-                state.coordinate_set.x
-            }
-            YRatio => {
-                state.coordinate_set.y
-            }
+            XRatio => state.coordinate_set.x,
+            YRatio => state.coordinate_set.y,
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
                 cell_array: state.cell_array,

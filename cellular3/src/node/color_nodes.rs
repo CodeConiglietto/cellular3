@@ -3,7 +3,7 @@ use palette::{encoding::srgb::Srgb, rgb::Rgb, Hsv, RgbHue};
 use crate::{
     constants::*,
     datatype::{colors::*, image::*},
-    node::{coord_map_nodes::*, primitive_nodes::*, Node},
+    node::{coord_map_nodes::*, mutagen_functions::*, primitive_nodes::*, Node},
     updatestate::UpdateState,
 };
 use mutagen::{Generatable, Mutatable};
@@ -12,26 +12,33 @@ use ndarray::prelude::*;
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
 pub enum FloatColorNodes {
-    Grayscale {
-        child: Box<UNFloatNodes>,
-    },
+    #[mutagen(gen_weight = pipe_node_weight)]
+    Grayscale { child: Box<UNFloatNodes> },
+
+    #[mutagen(gen_weight = branch_node_weight)]
     RGB {
         r: Box<UNFloatNodes>,
         g: Box<UNFloatNodes>,
         b: Box<UNFloatNodes>,
     },
+
+    #[mutagen(gen_weight = branch_node_weight)]
     HSV {
         h: Box<UNFloatNodes>,
         s: Box<UNFloatNodes>,
         v: Box<UNFloatNodes>,
     },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
     FromCellArray,
-    FromPalletteColor {
-        child: Box<PalletteColorNodes>,
-    },
-    FromIntColor {
-        child: Box<IntColorNodes>,
-    },
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    FromPalletteColor { child: Box<PalletteColorNodes> },
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    FromIntColor { child: Box<IntColorNodes> },
+
+    #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<FloatColorNodes>,
         child_state: Box<CoordMapNodes>,
@@ -85,8 +92,10 @@ impl Node for FloatColorNodes {
             FromCellArray => {
                 let (x, y) = wrap_point_to_cell_array(
                     state.cell_array.view(),
-                    ((state.coordinate_set.x.into_inner() + 1.0) * 0.5 * CELL_ARRAY_WIDTH as f32) as usize,
-                    ((state.coordinate_set.y.into_inner() + 1.0) * 0.5 * CELL_ARRAY_HEIGHT as f32) as usize,
+                    ((state.coordinate_set.x.into_inner() + 1.0) * 0.5 * CELL_ARRAY_WIDTH as f32)
+                        as usize,
+                    ((state.coordinate_set.y.into_inner() + 1.0) * 0.5 * CELL_ARRAY_HEIGHT as f32)
+                        as usize,
                 );
                 state.cell_array[[x as usize, y as usize]]
             }
@@ -103,36 +112,47 @@ impl Node for FloatColorNodes {
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
 pub enum PalletteColorNodes {
-    Constant {
-        value: PalletteColor,
-    },
-    FromUNFloat {
-        child: Box<UNFloatNodes>,
-    },
+    #[mutagen(gen_weight = leaf_node_weight)]
+    Constant { value: PalletteColor },
+
+    #[mutagen(gen_weight = branch_node_weight)]
     GiveColor {
         child_a: Box<PalletteColorNodes>,
         child_b: Box<PalletteColorNodes>,
     },
+
+    #[mutagen(gen_weight = branch_node_weight)]
     TakeColor {
         child_a: Box<PalletteColorNodes>,
         child_b: Box<PalletteColorNodes>,
     },
+
+    #[mutagen(gen_weight = branch_node_weight)]
     XorColor {
         child_a: Box<PalletteColorNodes>,
         child_b: Box<PalletteColorNodes>,
     },
+
+    #[mutagen(gen_weight = branch_node_weight)]
     EqColor {
         child_a: Box<PalletteColorNodes>,
         child_b: Box<PalletteColorNodes>,
     },
+
+    #[mutagen(gen_weight = branch_node_weight)]
     FromComponents {
         r: Box<BooleanNodes>,
         g: Box<BooleanNodes>,
         b: Box<BooleanNodes>,
     },
-    FromFloatColor {
-        child: Box<FloatColorNodes>,
-    },
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    FromUNFloat { child: Box<UNFloatNodes> },
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    FromFloatColor { child: Box<FloatColorNodes> },
+
+    #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<PalletteColorNodes>,
         child_state: Box<CoordMapNodes>,
@@ -146,9 +166,6 @@ impl Node for PalletteColorNodes {
         use PalletteColorNodes::*;
         match self {
             Constant { value } => *value,
-            FromUNFloat { child } => PalletteColor::from_index(
-                (child.compute(state).into_inner() * 0.99 * (MAX_COLORS) as f32) as usize,
-            ),
             GiveColor { child_a, child_b } => PalletteColor::from_components(
                 child_a.compute(state).give_color(child_b.compute(state)),
             ),
@@ -166,11 +183,14 @@ impl Node for PalletteColorNodes {
                 g.compute(state).into_inner(),
                 b.compute(state).into_inner(),
             ]),
+            FromUNFloat { child } => PalletteColor::from_index(
+                (child.compute(state).into_inner() * 0.99 * (MAX_COLORS) as f32) as usize,
+            ),
+            FromFloatColor { child } => PalletteColor::from_float_color(child.compute(state)),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
                 cell_array: state.cell_array,
             }),
-            FromFloatColor { child } => PalletteColor::from_float_color(child.compute(state)),
         }
     }
 }
@@ -178,12 +198,13 @@ impl Node for PalletteColorNodes {
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
 pub enum IntColorNodes {
-    Constant {
-        value: IntColor,
-    },
-    FromImage {
-        image: Image,
-    },
+    #[mutagen(gen_weight = leaf_node_weight)]
+    Constant { value: IntColor },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    FromImage { image: Image },
+
+    #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<IntColorNodes>,
         child_state: Box<CoordMapNodes>,

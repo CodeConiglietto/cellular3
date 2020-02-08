@@ -27,3 +27,5 @@ pub const _MAX_NEIGHBOUR_COUNT: i32 = 8; //Use this for total neighbours excludi
 pub const MAX_COLORS: usize = 8;
 
 pub const PARALLELIZE: bool = true;
+
+pub const MAX_TREE_DEPTH: usize = 10;

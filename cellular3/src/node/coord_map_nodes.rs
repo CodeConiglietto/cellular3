@@ -1,16 +1,29 @@
 use crate::{
-    node::{primitive_nodes::*, Node},
-    updatestate::{CoordinateSet, UpdateState},
     datatype::continuous::*,
+    node::{mutagen_functions::*, primitive_nodes::*, Node},
+    updatestate::{CoordinateSet, UpdateState},
 };
 use mutagen::{Generatable, Mutatable};
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
 pub enum CoordMapNodes {
-    Shift { x: Box<SNFloatNodes>,  y: Box<SNFloatNodes> },
-    Scale { x: Box<SNFloatNodes>,  y: Box<SNFloatNodes> },
+    #[mutagen(gen_weight = branch_node_weight)]
+    Shift {
+        x: Box<SNFloatNodes>,
+        y: Box<SNFloatNodes>,
+    },
+
+    #[mutagen(gen_weight = branch_node_weight)]
+    Scale {
+        x: Box<SNFloatNodes>,
+        y: Box<SNFloatNodes>,
+    },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
     ToPolar,
+
+    #[mutagen(gen_weight = leaf_node_weight)]
     FromPolar,
 }
 
@@ -21,22 +34,16 @@ impl Node for CoordMapNodes {
         use CoordMapNodes::*;
 
         match self {
-            Shift { x, y } => {
-                state
-                    .coordinate_set
-                    .get_coord_shifted(
-                        x.compute(state), 
-                        y.compute(state), 
-                        SNFloat::new(0.0))
-            },
-            Scale { x, y } => {
-                state
-                    .coordinate_set
-                    .get_coord_scaled(
-                        x.compute(state), 
-                        y.compute(state), 
-                        SNFloat::new(1.0))
-            },
+            Shift { x, y } => state.coordinate_set.get_coord_shifted(
+                x.compute(state),
+                y.compute(state),
+                SNFloat::new(0.0),
+            ),
+            Scale { x, y } => state.coordinate_set.get_coord_scaled(
+                x.compute(state),
+                y.compute(state),
+                SNFloat::new(1.0),
+            ),
             ToPolar => 
             {
                 let state_x = state.coordinate_set.x.into_inner();
