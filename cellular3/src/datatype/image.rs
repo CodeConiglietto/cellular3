@@ -10,34 +10,61 @@ use lazy_static::lazy_static;
 use mutagen::{Generatable, Mutatable};
 use rand::prelude::*;
 
-use crate::{constants::*, datatype::colors::IntColor, preloader::Preloader, util};
+use crate::{
+    constants::*,
+    datatype::colors::IntColor,
+    preloader::{Generator, Preloader},
+    util::{self, DeterministicRng},
+};
 
 lazy_static! {
     static ref ALL_IMAGES: Vec<PathBuf> = util::collect_filenames(IMAGE_PATH);
+    static ref FALLBACK_IMAGE: Image =
+        Image::load(Cursor::new(FALLBACK_IMAGE_DATA), ImageFormat::PNG)
+            .unwrap_or_else(|e| panic!("Error loading fallback image: {}", e));
 }
 
 thread_local! {
-    static IMAGE_PRELOADER: Preloader<Image> = Preloader::new(5, load_random_image);
+    static IMAGE_PRELOADER: Preloader<Image> = Preloader::new(10, RandomImageLoader::new());
 }
 
-fn load_random_image() -> Image {
-    if let Some(filename) = ALL_IMAGES.choose(&mut thread_rng()) {
-        Image::load_file(&filename).unwrap_or_else(|e| {
-            panic!(
-                "Error loading image '{}': {}",
-                filename.to_string_lossy(),
-                e
-            )
-        })
-    } else {
-        Image::load(Cursor::new(FALLBACK_IMAGE), ImageFormat::PNG)
-            .unwrap_or_else(|e| panic!("Error loading fallback image: {}", e))
+const FALLBACK_IMAGE_DATA: &[u8] =
+    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/fallback_image.png"));
+
+struct RandomImageLoader {
+    rng: DeterministicRng,
+}
+
+impl RandomImageLoader {
+    fn new() -> Self {
+        Self {
+            rng: DeterministicRng::new(),
+        }
     }
 }
 
-const FALLBACK_IMAGE: &[u8] =
-    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/fallback_image.png"));
+impl Generator for RandomImageLoader {
+    type Output = Image;
 
+    fn generate(&mut self) -> Self::Output {
+        if let Some(filename) = ALL_IMAGES.choose(&mut self.rng) {
+            println!("Loading image from file: {}", filename.to_string_lossy());
+
+            Image::load_file(&filename).unwrap_or_else(|e| {
+                panic!(
+                    "Error loading image '{}': {}",
+                    filename.to_string_lossy(),
+                    e,
+                )
+            })
+        } else {
+            println!("Loading image from fallback data");
+            (*FALLBACK_IMAGE).clone()
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct Image {
     frames: Vec<RgbImage>,
 }
@@ -107,7 +134,7 @@ impl Generatable for Image {
 }
 
 impl Mutatable for Image {
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, _rng: &mut R) {
-        *self = Self::generate();
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
+        *self = Self::generate_rng(rng);
     }
 }

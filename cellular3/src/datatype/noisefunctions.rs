@@ -110,7 +110,7 @@ impl Mutatable for CheckerboardNoise {
                 self.t_scale = UNFloat::generate_rng(rng);
             }
             3 => {
-                self.noise.set_size(rng.gen::<usize>() % 16 + 1);
+                self.noise.set_size(rng.gen_range(1, 16));
             }
             4 => {
                 self.noise = Checkerboard::new();
@@ -261,7 +261,7 @@ impl Mutatable for RidgedMultiFractalNoise {
                 self.t_scale = UNFloat::generate_rng(rng);
             }
             3 => {
-                self.noise.attenuation = rng.gen::<f64>() * 8.0;
+                self.noise.attenuation = rng.gen_range(0.0, 8.0);
             }
             4 => {
                 self.noise = RidgedMulti::new();
@@ -359,9 +359,9 @@ impl Generatable for WorleyNoise {
             y_scale: UNFloat::generate_rng(rng),
             t_scale: UNFloat::generate_rng(rng),
             noise: Worley::new()
-                .enable_range(rng.gen::<bool>())
-                .set_displacement(rng.gen::<f64>())
-                .set_range_function(match rng.gen::<u32>() % 5 {
+                .enable_range(rng.gen())
+                .set_displacement(rng.gen())
+                .set_range_function(match rng.gen_range(0, 5) {
                     0 => RangeFunction::Euclidean,
                     1 => RangeFunction::EuclideanSquared,
                     2 => RangeFunction::Manhattan,
@@ -385,13 +385,13 @@ impl Mutatable for WorleyNoise {
                 self.t_scale = UNFloat::generate_rng(rng);
             }
             3 => {
-                self.noise.enable_range(rng.gen::<bool>());
+                self.noise.enable_range(rng.gen());
             }
             4 => {
-                self.noise.set_displacement(rng.gen::<f64>());
+                self.noise.set_displacement(rng.gen());
             }
             5 => {
-                self.noise.set_range_function(match rng.gen::<u32>() % 5 {
+                self.noise.set_range_function(match rng.gen_range(0, 5) {
                     0 => RangeFunction::Euclidean,
                     1 => RangeFunction::EuclideanSquared,
                     2 => RangeFunction::Manhattan,

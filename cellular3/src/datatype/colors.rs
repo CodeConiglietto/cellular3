@@ -14,15 +14,15 @@ pub struct IntColor {
 impl Generatable for IntColor {
     fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
         Self {
-            r: rng.gen::<u8>(),
-            g: rng.gen::<u8>(),
-            b: rng.gen::<u8>(),
+            r: rng.gen(),
+            g: rng.gen(),
+            b: rng.gen(),
         }
     }
 }
 impl Mutatable for IntColor {
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, _rng: &mut R) {
-        *self = Self::generate();
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
+        *self = Self::generate_rng(rng);
     }
 }
 
@@ -235,13 +235,13 @@ impl PalletteColor {
 
 impl Generatable for PalletteColor {
     fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        Self::from_components([rng.gen::<bool>(), rng.gen::<bool>(), rng.gen::<bool>()])
+        Self::from_components([rng.gen(), rng.gen(), rng.gen()])
     }
 }
 impl Mutatable for PalletteColor {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
         let current_color = self.to_components();
-        let mut new_color = [rng.gen::<bool>(), rng.gen::<bool>(), rng.gen::<bool>()];
+        let mut new_color = [rng.gen(), rng.gen(), rng.gen()];
 
         for i in 0..3 {
             if rng.gen::<bool>() {

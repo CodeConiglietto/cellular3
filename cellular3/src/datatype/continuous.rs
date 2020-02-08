@@ -38,14 +38,14 @@ impl UNFloat {
 }
 
 impl Generatable for UNFloat {
-    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R) -> Self {
-        Self::new_unchecked(thread_rng().gen_range(0.0, 1.0))
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        Self::new_unchecked(rng.gen_range(0.0, 1.0))
     }
 }
 
 impl Mutatable for UNFloat {
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, _rng: &mut R) {
-        *self = Self::generate();
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
+        *self = Self::generate_rng(rng);
     }
 }
 
@@ -84,8 +84,8 @@ impl SNFloat {
 }
 
 impl Generatable for SNFloat {
-    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R) -> Self {
-        Self::new_unchecked(thread_rng().gen_range(-1.0, 1.0))
+    fn generate_rng<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        Self::new_unchecked(rng.gen_range(-1.0, 1.0))
     }
 }
 

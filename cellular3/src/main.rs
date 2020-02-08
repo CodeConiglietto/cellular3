@@ -5,36 +5,36 @@ use std::{
 
 use ggez::{
     conf::WindowMode,
-    event::{self, EventHandler},
-    graphics::{self, spritebatch::SpriteBatch, DrawParam, Image, Rect},
+    event::{self, EventHandler, KeyCode},
+    graphics::{self, spritebatch::SpriteBatch, DrawParam, Image, Rect, WHITE},
+    input::keyboard,
     timer, Context, ContextBuilder, GameResult,
 };
+use mutagen::{Generatable, Mutatable};
 use ndarray::{s, Array2};
 use rand::prelude::*;
 use rayon::prelude::*;
-
-use mutagen::{Generatable, Mutatable};
+use structopt::StructOpt;
 
 use crate::{
     constants::*,
     datatype::colors::FloatColor,
     node::{color_nodes::FloatColorNodes, Node},
+    opts::Opts,
     updatestate::*,
+    util::{DeterministicRng, RNG_SEED},
 };
-
-use ggez::event::KeyCode;
-use ggez::graphics::WHITE;
-use ggez::input::keyboard;
 
 mod constants;
 mod datatype;
 mod node;
+mod opts;
 mod preloader;
 mod updatestate;
 mod util;
 
 fn main() {
-    // Make a Context.
+    let opts = Opts::from_args();
     let (mut ctx, mut event_loop) = ContextBuilder::new("cellular3", "CodeBunny")
         .window_mode(WindowMode {
             width: INITIAL_WINDOW_WIDTH,
@@ -44,12 +44,8 @@ fn main() {
         .build()
         .expect("Could not create ggez context!");
 
-    // Create an instance of your event handler.
-    // Usually, you should provide it with the Context object to
-    // use when setting your game up.
-    let mut my_game = MyGame::new(&mut ctx);
+    let mut my_game = MyGame::new(&mut ctx, opts);
 
-    // Run!
     match event::run(&mut ctx, &mut event_loop, &mut my_game) {
         Ok(_) => println!("Exited cleanly."),
         Err(e) => println!("Error occurred: {}", e),
@@ -78,17 +74,25 @@ struct MyGame {
     root_node: Box<FloatColorNodes>,
 
     tree_dirty: bool,
-
     current_sync_tic: i32,
+    rng: DeterministicRng,
+    opts: Opts,
 }
 
 impl MyGame {
-    pub fn new(ctx: &mut Context) -> MyGame {
+    pub fn new(ctx: &mut Context, opts: Opts) -> MyGame {
         // Load/create resources such as images here.
         let (pixels_x, pixels_y) = ggez::graphics::size(ctx);
 
         let cells_x = CELL_ARRAY_WIDTH;
         let cells_y = CELL_ARRAY_HEIGHT;
+
+        if let Some(seed) = opts.seed {
+            println!("Manually setting RNG seed");
+            *RNG_SEED.lock().unwrap() = seed;
+        }
+
+        let rng = DeterministicRng::new();
 
         MyGame {
             // ...
@@ -167,8 +171,9 @@ impl MyGame {
             ),
 
             tree_dirty: true,
-
             current_sync_tic: 0,
+            rng,
+            opts,
         }
     }
 }
@@ -407,7 +412,7 @@ impl EventHandler for MyGame {
             //     similar_neighbours: 0,
             // };
 
-            if self.tree_dirty || random::<u32>() % 100 == 0 {
+            if self.tree_dirty || self.rng.gen_bool(0.01) {
                 self.root_node.mutate();
                 println!("====MUTATING TREE====");
                 println!("{:#?}", &self.root_node);

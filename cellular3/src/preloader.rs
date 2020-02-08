@@ -12,14 +12,13 @@ impl<T> Preloader<T>
 where
     T: Send + 'static,
 {
-    pub fn new<F>(pool_size: usize, generator: F) -> Self
+    pub fn new<G>(pool_size: usize, mut generator: G) -> Self
     where
-        F: Fn() -> T,
-        F: Send + 'static,
+        G: Generator<Output = T> + Send + 'static,
     {
         let (sender, receiver) = mpsc::sync_channel(pool_size);
         let _worker_thread = thread::spawn(move || loop {
-            if sender.send(generator()).is_err() {
+            if sender.send(generator.generate()).is_err() {
                 break;
             }
         });
@@ -33,4 +32,10 @@ where
     pub fn get_next(&self) -> T {
         self.receiver.recv().unwrap()
     }
+}
+
+pub trait Generator {
+    type Output: Sized;
+
+    fn generate(&mut self) -> Self::Output;
 }
