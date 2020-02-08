@@ -19,7 +19,7 @@ mod mutagen_functions {
             0.0
         } else {
             map_range(
-                (state.depth - MIN_LEAF_DEPTH) as f32,
+                state.depth as f32,
                 (MIN_LEAF_DEPTH as f32, MAX_LEAF_DEPTH as f32),
                 (0.0, 1.0),
             ) as f64
@@ -31,7 +31,7 @@ mod mutagen_functions {
             0.0
         } else {
             1.0 - map_range(
-                (state.depth - MIN_PIPE_DEPTH) as f32,
+                state.depth as f32,
                 (MIN_PIPE_DEPTH as f32, MAX_PIPE_DEPTH as f32),
                 (0.0, 1.0),
             ) as f64
@@ -43,7 +43,7 @@ mod mutagen_functions {
             0.0
         } else {
             1.0 - map_range(
-                (state.depth - MIN_BRANCH_DEPTH) as f32,
+                state.depth as f32,
                 (MIN_BRANCH_DEPTH as f32, MAX_BRANCH_DEPTH as f32),
                 (0.0, 1.0),
             ) as f64
