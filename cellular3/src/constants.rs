@@ -6,9 +6,9 @@ pub const INITIAL_WINDOW_HEIGHT: f32 = 900.0;
 pub const CELL_ARRAY_WIDTH: usize = 225;
 pub const CELL_ARRAY_HEIGHT: usize = 225;
 
-pub const NOISE_X_SCALE_FACTOR: f64 = 1.0;
-pub const NOISE_Y_SCALE_FACTOR: f64 = 1.0;
-pub const NOISE_T_SCALE_FACTOR: f64 = 1.0;
+pub const NOISE_X_SCALE_FACTOR: f64 = 10.0;
+pub const NOISE_Y_SCALE_FACTOR: f64 = 10.0;
+pub const NOISE_T_SCALE_FACTOR: f64 = 10.0;
 pub const _NOISE_X_SCALE_MINIMUM: f64 = 0.001;
 pub const _NOISE_Y_SCALE_MINIMUM: f64 = 0.001;
 pub const _NOISE_T_SCALE_MINIMUM: f64 = 0.5;
