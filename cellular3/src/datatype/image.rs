@@ -153,15 +153,15 @@ impl Debug for Image {
 }
 
 impl Generatable for Image {
-    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R) -> Self {
+    fn generate_rng<R: Rng + ?Sized>(_rng: &mut R, state: mutagen::State) -> Self {
         println!("Generating new image");
         IMAGE_PRELOADER.with(|p| p.get_next())
     }
 }
 
 impl Mutatable for Image {
-    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R) {
+    fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, state: mutagen::State) {
         println!("Mutating image");
-        *self = Self::generate_rng(rng);
+        *self = Self::generate_rng(rng, state);
     }
 }
