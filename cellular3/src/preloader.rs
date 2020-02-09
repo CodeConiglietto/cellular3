@@ -6,6 +6,8 @@ use std::{
     thread::{self, JoinHandle},
 };
 
+use log::info;
+
 pub struct Preloader<T>
 where
     T: Send + 'static,
@@ -58,7 +60,7 @@ where
     T: Send + 'static,
 {
     fn drop(&mut self) {
-        println!("Shutting down preloader thread");
+        info!("Shutting down preloader thread");
         *self.running.lock().unwrap() = false;
         self.worker_thread.take().unwrap().join().unwrap();
     }

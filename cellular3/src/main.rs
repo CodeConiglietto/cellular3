@@ -11,6 +11,7 @@ use ggez::{
     input::keyboard,
     timer, Context, ContextBuilder, GameResult,
 };
+use log::{error, info};
 use mutagen::{Generatable, Mutatable};
 use ndarray::{s, Array2};
 use rand::prelude::*;
@@ -35,6 +36,23 @@ mod updatestate;
 mod util;
 
 fn main() {
+    std::env::set_var("RUST_BACKTRACE", "full");
+
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S%.3f]"),
+                record.target(),
+                record.level(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Trace)
+        .chain(std::io::stdout())
+        .apply()
+        .unwrap();
+
     let opts = Opts::from_args();
     let (mut ctx, mut event_loop) = ContextBuilder::new("cellular3", "CodeBunny")
         .window_mode(WindowMode {
@@ -51,8 +69,8 @@ fn main() {
     IMAGE_PRELOADER.with(|_| ());
 
     match event::run(&mut ctx, &mut event_loop, &mut my_game) {
-        Ok(_) => println!("Exited cleanly."),
-        Err(e) => println!("Error occurred: {}", e),
+        Ok(_) => info!("Exited cleanly."),
+        Err(e) => error!("Error occurred: {}", e),
     }
 }
 
@@ -92,7 +110,7 @@ impl MyGame {
         let cells_y = CELL_ARRAY_HEIGHT;
 
         if let Some(seed) = opts.seed {
-            println!("Manually setting RNG seed");
+            info!("Manually setting RNG seed");
             *RNG_SEED.lock().unwrap() = seed;
         }
 
@@ -428,10 +446,10 @@ impl EventHandler for MyGame {
             // };
 
             if self.tree_dirty || self.rng.gen_bool(0.01) {
-                println!("====TIC: {} MUTATING TREE====", self.current_sync_tic);
+                info!("====TIC: {} MUTATING TREE====", self.current_sync_tic);
                 self.root_node
                     .mutate_rng(&mut self.rng, mutagen::State::default());
-                println!("{:#?}", &self.root_node);
+                info!("{:#?}", &self.root_node);
                 self.tree_dirty = false;
             }
 

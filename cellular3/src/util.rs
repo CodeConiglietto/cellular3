@@ -5,6 +5,7 @@ use std::{
 };
 
 use lazy_static::lazy_static;
+use log::debug;
 use rand::{RngCore, SeedableRng};
 use walkdir::WalkDir;
 
@@ -76,7 +77,7 @@ impl SeedableRng for DeterministicRng {
 impl DeterministicRng {
     pub fn new() -> Self {
         let seed = *RNG_SEED.lock().unwrap();
-        println!("Initializing RNG with seed {}", seed);
+        debug!("Initializing RNG with seed {}", seed);
         Self::from_seed(seed.to_le_bytes())
     }
 }

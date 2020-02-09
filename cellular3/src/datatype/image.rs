@@ -8,6 +8,7 @@ use std::{
 
 use image::{gif, imageops, AnimationDecoder, DynamicImage, FilterType, ImageFormat, RgbImage};
 use lazy_static::lazy_static;
+use log::info;
 use mutagen::{Generatable, Mutatable};
 use rand::prelude::*;
 
@@ -52,7 +53,7 @@ impl Generator for RandomImageLoader {
 
     fn generate(&mut self) -> Self::Output {
         if let Some(filename) = ALL_IMAGES.choose(&mut self.rng) {
-            println!("Loading image from file: {}", filename.to_string_lossy());
+            info!("Loading image from file: {}", filename.to_string_lossy());
 
             Image::load_file(&filename).unwrap_or_else(|e| {
                 panic!(
@@ -62,7 +63,7 @@ impl Generator for RandomImageLoader {
                 )
             })
         } else {
-            println!("Loading image from fallback data");
+            info!("Loading image from fallback data");
             FALLBACK_IMAGE.clone()
         }
     }
@@ -170,7 +171,6 @@ impl Debug for Image {
 
 impl Generatable for Image {
     fn generate_rng<R: Rng + ?Sized>(_rng: &mut R, _state: mutagen::State) -> Self {
-        println!("Generating new image");
         IMAGE_PRELOADER
             .with(|p| p.try_get_next())
             .unwrap_or_else(|| FALLBACK_IMAGE.clone())
@@ -179,7 +179,6 @@ impl Generatable for Image {
 
 impl Mutatable for Image {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, state: mutagen::State) {
-        println!("Mutating image");
         *self = Self::generate_rng(rng, state);
     }
 }
