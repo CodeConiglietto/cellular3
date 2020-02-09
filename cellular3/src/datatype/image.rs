@@ -8,7 +8,7 @@ use std::{
 
 use image::{gif, imageops, AnimationDecoder, DynamicImage, FilterType, ImageFormat, RgbImage};
 use lazy_static::lazy_static;
-use log::{error, info};
+use log::{debug, error};
 use mutagen::{Generatable, Mutatable};
 use rand::prelude::*;
 
@@ -19,12 +19,14 @@ use crate::{
     util::{self, DeterministicRng},
 };
 
+pub const MODULE_PATH: &str = module_path!();
+
 lazy_static! {
     static ref ALL_IMAGES: Vec<PathBuf> = util::collect_filenames(IMAGE_PATH);
     static ref FALLBACK_IMAGE: Image = Image::load(
         String::from("<FALLBACK>"),
         Cursor::new(FALLBACK_IMAGE_DATA),
-        ImageFormat::PNG
+        ImageFormat::PNG,
     )
     .unwrap_or_else(|e| {
         error!("Error loading fallback image: {}", e);
@@ -56,18 +58,17 @@ impl Generator for RandomImageLoader {
 
     fn generate(&mut self) -> Self::Output {
         if let Some(filename) = ALL_IMAGES.choose(&mut self.rng) {
-            info!("Loading image from file: {}", filename.to_string_lossy());
-
+            debug!("Loading image file '{}'", filename.to_string_lossy());
             Image::load_file(&filename).unwrap_or_else(|e| {
                 error!(
-                    "Error loading image '{}': {}",
+                    "Failed to load image file '{}': {}",
                     filename.to_string_lossy(),
-                    e,
+                    e
                 );
-                panic!()
+                FALLBACK_IMAGE.clone()
             })
         } else {
-            info!("Loading image from fallback data");
+            debug!("No images found, loading fallback image");
             FALLBACK_IMAGE.clone()
         }
     }

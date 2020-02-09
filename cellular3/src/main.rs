@@ -38,20 +38,7 @@ mod util;
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "full");
 
-    fern::Dispatch::new()
-        .format(|out, message, record| {
-            out.finish(format_args!(
-                "{}[{}][{}] {}",
-                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S%.3f]"),
-                record.target(),
-                record.level(),
-                message
-            ))
-        })
-        .level(log::LevelFilter::Trace)
-        .chain(std::io::stdout())
-        .apply()
-        .unwrap();
+    setup_logging();
 
     let opts = Opts::from_args();
     let (mut ctx, mut event_loop) = ContextBuilder::new("cellular3", "CodeBunny")
@@ -72,6 +59,29 @@ fn main() {
         Ok(_) => info!("Exited cleanly."),
         Err(e) => error!("Error occurred: {}", e),
     }
+}
+
+fn setup_logging() {
+    let image_error_dispatch = fern::Dispatch::new()
+        .level(log::LevelFilter::Off)
+        .level_for(datatype::image::MODULE_PATH, log::LevelFilter::Error)
+        .chain(fern::log_file("image_errors.log").unwrap());
+
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S%.3f]"),
+                record.target(),
+                record.level(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Trace)
+        .chain(image_error_dispatch)
+        .chain(std::io::stdout())
+        .apply()
+        .unwrap();
 }
 
 struct MyGame {
