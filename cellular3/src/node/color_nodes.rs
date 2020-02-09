@@ -3,7 +3,7 @@ use palette::{encoding::srgb::Srgb, rgb::Rgb, Hsv, RgbHue};
 use crate::{
     constants::*,
     datatype::{colors::*, image::*},
-    node::{coord_map_nodes::*, mutagen_functions::*, primitive_nodes::*, Node},
+    node::{coord_map_nodes::*, discrete_nodes::*, mutagen_functions::*, continuous_nodes::*, Node},
     updatestate::UpdateState,
 };
 use mutagen::{Generatable, Mutatable};
@@ -205,6 +205,9 @@ pub enum IntColorNodes {
     FromImage { image: Image },
 
     #[mutagen(gen_weight = branch_node_weight)]
+    Decompose { r: Box<ByteNodes>, g: Box<ByteNodes>, b: Box<ByteNodes> },
+
+    #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<IntColorNodes>,
         child_state: Box<CoordMapNodes>,
@@ -224,6 +227,7 @@ impl Node for IntColorNodes {
                 state.coordinate_set.y,
                 state.coordinate_set.t,
             ),
+            Decompose { r, g, b } => IntColor { r: r.compute(state).into_inner(), g: g.compute(state).into_inner(), b: b.compute(state).into_inner() },
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
                 cell_array: state.cell_array,

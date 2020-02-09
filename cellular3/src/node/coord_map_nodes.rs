@@ -1,6 +1,6 @@
 use crate::{
     datatype::continuous::*,
-    node::{mutagen_functions::*, primitive_nodes::*, Node},
+    node::{mutagen_functions::*, continuous_nodes::*, Node},
     updatestate::{CoordinateSet, UpdateState},
 };
 use mutagen::{Generatable, Mutatable};
@@ -44,32 +44,40 @@ impl Node for CoordMapNodes {
                 y.compute(state),
                 SNFloat::new(1.0),
             ),
-            ToPolar => 
-            {
+            ToPolar => {
                 let state_x = state.coordinate_set.x.into_inner();
                 let state_y = state.coordinate_set.y.into_inner();
 
-                CoordinateSet
-                {
+                CoordinateSet {
                     //Represents the angle from 0.0..1.0
                     //atan2(y, x) is correct. Don't ask me why.
-                    x: Angle::new(
-                        f32::atan2(
-                            state_y, 
-                            state_x)).to_signed(), 
+                    x: Angle::new(f32::atan2(state_y, state_x)).to_signed(),
                     //Represents the radius between 0.0..1.0
-                    y: SNFloat::new(f32::sqrt(
-                        state.coordinate_set.x.into_inner().powf(2.0) + 
-                        state.coordinate_set.y.into_inner().powf(2.0)).min(1.0)),
-                    t: state.coordinate_set.t
-                }},
-            FromPolar => 
-                CoordinateSet
-                {
-                    x: SNFloat::new((state.coordinate_set.y.into_inner() * f32::cos(state.coordinate_set.x.into_inner())).min(1.0).max(-1.0)), 
-                    y: SNFloat::new((state.coordinate_set.y.into_inner() * f32::sin(state.coordinate_set.x.into_inner())).min(1.0).max(-1.0)), 
-                    t: state.coordinate_set.t
+                    y: SNFloat::new(
+                        f32::sqrt(
+                            state.coordinate_set.x.into_inner().powf(2.0)
+                                + state.coordinate_set.y.into_inner().powf(2.0),
+                        )
+                        .min(1.0),
+                    ),
+                    t: state.coordinate_set.t,
                 }
+            }
+            FromPolar => CoordinateSet {
+                x: SNFloat::new(
+                    (state.coordinate_set.y.into_inner()
+                        * f32::cos(state.coordinate_set.x.into_inner()))
+                    .min(1.0)
+                    .max(-1.0),
+                ),
+                y: SNFloat::new(
+                    (state.coordinate_set.y.into_inner()
+                        * f32::sin(state.coordinate_set.x.into_inner()))
+                    .min(1.0)
+                    .max(-1.0),
+                ),
+                t: state.coordinate_set.t,
+            },
         }
     }
 }
