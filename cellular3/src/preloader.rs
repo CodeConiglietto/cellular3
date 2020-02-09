@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     sync::{
         mpsc::{self, Receiver, TryRecvError},
         Arc, Mutex,
@@ -6,20 +7,20 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use log::info;
+use log::{debug, info, trace};
 
 pub struct Preloader<T>
 where
-    T: Send + 'static,
+    T: Debug + Send + 'static,
 {
-    worker_thread: Option<JoinHandle<()>>,
+    child_thread: Option<JoinHandle<()>>,
     running: Arc<Mutex<bool>>,
     receiver: Receiver<T>,
 }
 
 impl<T> Preloader<T>
 where
-    T: Send + 'static,
+    T: Debug + Send + 'static,
 {
     pub fn new<G>(pool_size: usize, mut generator: G) -> Self
     where
@@ -27,16 +28,42 @@ where
     {
         let (sender, receiver) = mpsc::sync_channel(pool_size);
         let running = Arc::new(Mutex::new(true));
-        let running_worker = Arc::clone(&running);
+        let running_child = Arc::clone(&running);
 
-        let worker_thread = Some(thread::spawn(move || loop {
-            if sender.send(generator.generate()).is_err() || !*running_worker.lock().unwrap() {
-                break;
+        let child_thread = thread::spawn(move || {
+            loop {
+                debug!(
+                    "Preloader child thread {:?} starting up",
+                    thread::current().id()
+                );
+
+                if sender.send(generator.generate()).is_err() {
+                    break;
+                }
+
+                if !*running_child.lock().unwrap() {
+                    break;
+                }
+
+                trace!(
+                    "Preloader child thread {:?} looping",
+                    thread::current().id()
+                );
             }
-        }));
+            debug!(
+                "Preloader child thread {:?} shutting down",
+                thread::current().id()
+            );
+        });
+
+        debug!(
+            "Parent thread {:?} spawned child preloader thread {:?}",
+            thread::current().id(),
+            child_thread.thread().id()
+        );
 
         Self {
-            worker_thread,
+            child_thread: Some(child_thread),
             running,
             receiver,
         }
@@ -50,21 +77,35 @@ where
         match self.receiver.try_recv() {
             Ok(item) => Some(item),
             Err(TryRecvError::Empty) => None,
-            Err(TryRecvError::Disconnected) => panic!("Worker thread disconnected"),
+            Err(TryRecvError::Disconnected) => panic!("Child thread disconnected"),
         }
     }
 }
 
 impl<T> Drop for Preloader<T>
 where
-    T: Send + 'static,
+    T: Debug + Send + 'static,
 {
     fn drop(&mut self) {
         info!("Shutting down preloader thread");
         let mut running = self.running.lock().unwrap();
         if *running {
+            let child_thread = self.child_thread.take().unwrap();
+            debug!(
+                "Parent thread {:?} shutting down child preloader thread {:?}",
+                thread::current().id(),
+                child_thread.thread().id()
+            );
+
             *running = false;
-            self.worker_thread.take().unwrap().join().unwrap();
+
+            loop {
+                if dbg!(self.receiver.try_recv()).is_err() {
+                    break;
+                }
+            }
+
+            child_thread.join().unwrap();
         }
     }
 }
