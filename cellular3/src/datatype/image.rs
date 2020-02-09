@@ -8,7 +8,7 @@ use std::{
 
 use image::{gif, imageops, AnimationDecoder, DynamicImage, FilterType, ImageFormat, RgbImage};
 use lazy_static::lazy_static;
-use log::info;
+use log::{error, info};
 use mutagen::{Generatable, Mutatable};
 use rand::prelude::*;
 
@@ -26,7 +26,10 @@ lazy_static! {
         Cursor::new(FALLBACK_IMAGE_DATA),
         ImageFormat::PNG
     )
-    .unwrap_or_else(|e| panic!("Error loading fallback image: {}", e));
+    .unwrap_or_else(|e| {
+        error!("Error loading fallback image: {}", e);
+        panic!()
+    });
 }
 
 thread_local! {
@@ -56,11 +59,12 @@ impl Generator for RandomImageLoader {
             info!("Loading image from file: {}", filename.to_string_lossy());
 
             Image::load_file(&filename).unwrap_or_else(|e| {
-                panic!(
+                error!(
                     "Error loading image '{}': {}",
                     filename.to_string_lossy(),
                     e,
-                )
+                );
+                panic!()
             })
         } else {
             info!("Loading image from fallback data");
