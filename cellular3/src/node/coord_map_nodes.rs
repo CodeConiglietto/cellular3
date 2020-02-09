@@ -1,6 +1,6 @@
 use crate::{
     datatype::continuous::*,
-    node::{mutagen_functions::*, continuous_nodes::*, Node},
+    node::{continuous_nodes::*, mutagen_functions::*, discrete_nodes::*, Node},
     updatestate::{CoordinateSet, UpdateState},
 };
 use mutagen::{Generatable, Mutatable};
@@ -25,6 +25,12 @@ pub enum CoordMapNodes {
 
     #[mutagen(gen_weight = leaf_node_weight)]
     FromPolar,
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
+    },
 }
 
 impl Node for CoordMapNodes {
@@ -78,6 +84,17 @@ impl Node for CoordMapNodes {
                 ),
                 t: state.coordinate_set.t,
             },
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }

@@ -45,11 +45,10 @@ impl Byte {
 
     pub fn divide(self, other: Self) -> Self {
         let other_val = other.into_inner();
-        
-        if other_val == 0
-        {
+
+        if other_val == 0 {
             Self::new(other_val)
-        }else{
+        } else {
             Self::new(self.into_inner() / other.into_inner())
         }
     }
@@ -60,11 +59,10 @@ impl Byte {
 
     pub fn modulus(self, other: Self) -> Self {
         let other_val = other.into_inner();
-        
-        if other_val == 0
-        {
+
+        if other_val == 0 {
             Self::new(other_val)
-        }else{
+        } else {
             Self::new(self.into_inner() % other.into_inner())
         }
     }
@@ -88,7 +86,7 @@ pub struct UInt {
 }
 
 impl UInt {
-    pub fn new(value: u32) -> Self{
+    pub fn new(value: u32) -> Self {
         Self { value: value }
     }
 
@@ -102,11 +100,10 @@ impl UInt {
 
     pub fn divide(self, other: Self) -> Self {
         let other_val = other.into_inner();
-        
-        if other_val == 0
-        {
+
+        if other_val == 0 {
             Self::new(other_val)
-        }else{
+        } else {
             Self::new(self.into_inner() / other.into_inner())
         }
     }
@@ -117,11 +114,10 @@ impl UInt {
 
     pub fn modulus(self, other: Self) -> Self {
         let other_val = other.into_inner();
-        
-        if other_val == 0
-        {
+
+        if other_val == 0 {
             Self::new(other_val)
-        }else{
+        } else {
             Self::new(self.into_inner() / other.into_inner())
         }
     }
@@ -145,7 +141,7 @@ pub struct SInt {
 }
 
 impl SInt {
-    pub fn new(value: i32) -> Self{
+    pub fn new(value: i32) -> Self {
         Self { value: value }
     }
 
@@ -159,11 +155,10 @@ impl SInt {
 
     pub fn divide(self, other: Self) -> Self {
         let other_val = other.into_inner();
-        
-        if other_val == 0
-        {
+
+        if other_val == 0 {
             Self::new(other_val)
-        }else{
+        } else {
             Self::new(self.into_inner() / other.into_inner())
         }
     }
@@ -174,11 +169,10 @@ impl SInt {
 
     pub fn modulus(self, other: Self) -> Self {
         let other_val = other.into_inner();
-        
-        if other_val == 0
-        {
+
+        if other_val == 0 {
             Self::new(other_val)
-        }else{
+        } else {
             Self::new(self.into_inner() / other.into_inner())
         }
     }

@@ -3,7 +3,9 @@ use palette::{encoding::srgb::Srgb, rgb::Rgb, Hsv, RgbHue};
 use crate::{
     constants::*,
     datatype::{colors::*, image::*},
-    node::{coord_map_nodes::*, discrete_nodes::*, mutagen_functions::*, continuous_nodes::*, Node},
+    node::{
+        continuous_nodes::*, coord_map_nodes::*, discrete_nodes::*, mutagen_functions::*, Node,
+    },
     updatestate::UpdateState,
 };
 use mutagen::{Generatable, Mutatable};
@@ -43,6 +45,12 @@ pub enum FloatColorNodes {
         child: Box<FloatColorNodes>,
         child_state: Box<CoordMapNodes>,
     },
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
+    },
 }
 
 // This function assumes an x and y between the ranges -dim().<dimension>..infinity
@@ -72,7 +80,7 @@ impl Node for FloatColorNodes {
                     b: value,
                     a: 1.0,
                 }
-            }
+            },
             RGB { r, g, b } => FloatColor {
                 r: r.compute(state).into_inner() as f32,
                 g: g.compute(state).into_inner() as f32,
@@ -88,7 +96,7 @@ impl Node for FloatColorNodes {
                 .into();
 
                 float_color_from_pallette_rgb(rgb)
-            }
+            },
             FromCellArray => {
                 let (x, y) = wrap_point_to_cell_array(
                     state.cell_array.view(),
@@ -98,13 +106,14 @@ impl Node for FloatColorNodes {
                         as usize,
                 );
                 state.cell_array[[x as usize, y as usize]]
-            }
+            },
             FromPalletteColor { child } => FloatColor::from(child.compute(state)),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
                 cell_array: state.cell_array,
             }),
             FromIntColor { child } => FloatColor::from(child.compute(state)),
+            IfElse { predicate, child_a, child_b } => if predicate.compute(state).into_inner() { child_a.compute(state) } else { child_b.compute(state) }
         }
     }
 }
@@ -157,6 +166,12 @@ pub enum PalletteColorNodes {
         child: Box<PalletteColorNodes>,
         child_state: Box<CoordMapNodes>,
     },
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
+    },
 }
 
 impl Node for PalletteColorNodes {
@@ -191,6 +206,7 @@ impl Node for PalletteColorNodes {
                 coordinate_set: child_state.compute(state),
                 cell_array: state.cell_array,
             }),
+            IfElse { predicate, child_a, child_b } => if predicate.compute(state).into_inner() { child_a.compute(state) } else { child_b.compute(state) }
         }
     }
 }
@@ -205,12 +221,22 @@ pub enum IntColorNodes {
     FromImage { image: Image },
 
     #[mutagen(gen_weight = branch_node_weight)]
-    Decompose { r: Box<ByteNodes>, g: Box<ByteNodes>, b: Box<ByteNodes> },
+    Decompose {
+        r: Box<ByteNodes>,
+        g: Box<ByteNodes>,
+        b: Box<ByteNodes>,
+    },
 
     #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<IntColorNodes>,
         child_state: Box<CoordMapNodes>,
+    },
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
     },
 }
 
@@ -227,11 +253,26 @@ impl Node for IntColorNodes {
                 state.coordinate_set.y,
                 state.coordinate_set.t,
             ),
-            Decompose { r, g, b } => IntColor { r: r.compute(state).into_inner(), g: g.compute(state).into_inner(), b: b.compute(state).into_inner() },
+            Decompose { r, g, b } => IntColor {
+                r: r.compute(state).into_inner(),
+                g: g.compute(state).into_inner(),
+                b: b.compute(state).into_inner(),
+            },
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
                 cell_array: state.cell_array,
             }),
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }

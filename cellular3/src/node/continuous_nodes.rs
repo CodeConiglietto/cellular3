@@ -1,6 +1,9 @@
 use crate::{
-    datatype::{continuous::*},
-    node::{color_nodes::*, noise_nodes::*, coord_map_nodes::*, mutagen_functions::*, Node},
+    datatype::{colors::*, continuous::*},
+    node::{
+        color_nodes::*, coord_map_nodes::*, discrete_nodes::*, mutagen_functions::*,
+        noise_nodes::*, Node,
+    },
     updatestate::*,
 };
 use mutagen::{Generatable, Mutatable};
@@ -32,6 +35,12 @@ pub enum AngleNodes {
         child: Box<AngleNodes>,
         child_state: Box<CoordMapNodes>,
     },
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
+    },
 }
 
 impl Node for AngleNodes {
@@ -51,6 +60,17 @@ impl Node for AngleNodes {
                 coordinate_set: child_state.compute(state),
                 cell_array: state.cell_array,
             }),
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }
@@ -99,6 +119,12 @@ pub enum SNFloatNodes {
         child: Box<SNFloatNodes>,
         child_state: Box<CoordMapNodes>,
     },
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
+    },
 }
 
 impl Node for SNFloatNodes {
@@ -125,6 +151,17 @@ impl Node for SNFloatNodes {
                 cell_array: state.cell_array,
             }),
             NoiseFunction { child } => child.compute(state),
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }
@@ -135,25 +172,15 @@ pub enum UNFloatNodes {
     #[mutagen(gen_weight = leaf_node_weight)]
     Random,
     #[mutagen(gen_weight = leaf_node_weight)]
-    Constant {
-        value: UNFloat,
-    },
+    Constant { value: UNFloat },
     #[mutagen(gen_weight = pipe_node_weight)]
-    FromAngle {
-        child: Box<AngleNodes>,
-    },
+    FromAngle { child: Box<AngleNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    FromSNFloat {
-        child: Box<SNFloatNodes>,
-    },
+    FromSNFloat { child: Box<SNFloatNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    AbsSNFloat {
-        child: Box<SNFloatNodes>,
-    },
+    AbsSNFloat { child: Box<SNFloatNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    SquareSNFloat {
-        child: Box<SNFloatNodes>,
-    },
+    SquareSNFloat { child: Box<SNFloatNodes> },
     #[mutagen(gen_weight = branch_node_weight)]
     Multiply {
         child_a: Box<UNFloatNodes>,
@@ -165,29 +192,27 @@ pub enum UNFloatNodes {
         child_b: Box<UNFloatNodes>,
     },
     #[mutagen(gen_weight = pipe_node_weight)]
-    InvertNormalised {
-        child: Box<UNFloatNodes>,
-    },
+    InvertNormalised { child: Box<UNFloatNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    ColorAverage {
-        child: Box<FloatColorNodes>,
-    },
+    ColorAverage { child: Box<FloatColorNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    ColorComponentR {
-        child: Box<FloatColorNodes>,
-    },
+    ColorComponentR { child: Box<FloatColorNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    ColorComponentG {
-        child: Box<FloatColorNodes>,
-    },
+    ColorComponentG { child: Box<FloatColorNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    ColorComponentB {
-        child: Box<FloatColorNodes>,
-    },
+    ColorComponentB { child: Box<FloatColorNodes> },
+    #[mutagen(gen_weight = pipe_node_weight)]
+    ColorComponentH { child: Box<FloatColorNodes> },
     #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<UNFloatNodes>,
         child_state: Box<CoordMapNodes>,
+    },
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
     },
 }
 
@@ -220,10 +245,22 @@ impl Node for UNFloatNodes {
             ColorComponentR { child } => UNFloat::new(child.compute(state).r),
             ColorComponentG { child } => UNFloat::new(child.compute(state).g),
             ColorComponentB { child } => UNFloat::new(child.compute(state).b),
+            ColorComponentH { child } => get_hue_unfloat(child.compute(state)),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
                 cell_array: state.cell_array,
             }),
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }
