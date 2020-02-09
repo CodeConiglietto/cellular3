@@ -61,8 +61,11 @@ where
 {
     fn drop(&mut self) {
         info!("Shutting down preloader thread");
-        *self.running.lock().unwrap() = false;
-        self.worker_thread.take().unwrap().join().unwrap();
+        let mut running = self.running.lock().unwrap();
+        if *running {
+            *running = false;
+            self.worker_thread.take().unwrap().join().unwrap();
+        }
     }
 }
 
