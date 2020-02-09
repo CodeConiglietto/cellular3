@@ -64,6 +64,7 @@ where
         let mut running = self.running.lock().unwrap();
         if *running {
             *running = false;
+            let _ = self.receiver.try_recv();
             self.worker_thread.take().unwrap().join().unwrap();
         }
     }
