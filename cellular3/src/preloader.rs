@@ -100,7 +100,7 @@ where
             *running = false;
 
             loop {
-                if dbg!(self.receiver.try_recv()).is_err() {
+                if self.receiver.try_recv().is_err() {
                     break;
                 }
             }

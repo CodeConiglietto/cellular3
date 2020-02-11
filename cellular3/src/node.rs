@@ -1,9 +1,9 @@
+pub mod color_blend_nodes;
 pub mod color_nodes;
 pub mod continuous_nodes;
 pub mod coord_map_nodes;
 pub mod discrete_nodes;
 pub mod noise_nodes;
-pub mod color_blend_nodes;
 
 use crate::updatestate::UpdateState;
 

@@ -73,7 +73,7 @@ impl Node for BooleanNodes {
             // Random => Boolean::generate(),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
             IfElse {
                 predicate,

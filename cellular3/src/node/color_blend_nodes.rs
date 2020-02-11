@@ -14,9 +14,7 @@ pub enum ColorBlendNodes {
     Gray,
 
     #[mutagen(gen_weight = pipe_node_weight)]
-    Invert {
-        child: Box<FloatColorNodes>,
-    },
+    Invert { child: Box<FloatColorNodes> },
 
     #[mutagen(gen_weight = branch_node_weight)]
     Dissolve {
@@ -24,7 +22,6 @@ pub enum ColorBlendNodes {
         color_b: Box<FloatColorNodes>,
         value: Box<UNFloatNodes>,
     },
-
     // #[mutagen(gen_weight = branch_node_weight)]
     // Overlay {
     //     color_a: Box<FloatColorNodes>,
@@ -129,20 +126,32 @@ impl Node for ColorBlendNodes {
         use ColorBlendNodes::*;
 
         match self {
-            Gray => FloatColor {r: 1.0, g: 1.0, b: 1.0, a: 1.0},
-            Invert {child} => {
+            Gray => FloatColor {
+                r: 1.0,
+                g: 1.0,
+                b: 1.0,
+                a: 1.0,
+            },
+            Invert { child } => {
                 let col = child.compute(state);
-                FloatColor{ r: 1.0 - col.r, g: 1.0 - col.g, b: 1.0 - col.b, a: 1.0 - col.a}
+                FloatColor {
+                    r: 1.0 - col.r,
+                    g: 1.0 - col.g,
+                    b: 1.0 - col.b,
+                    a: 1.0 - col.a,
+                }
             }
-            Dissolve {color_a, color_b, value} => 
-            {
-                if UNFloat::generate().into_inner() < value.compute(state).into_inner() 
-                {
+            Dissolve {
+                color_a,
+                color_b,
+                value,
+            } => {
+                if UNFloat::generate().into_inner() < value.compute(state).into_inner() {
                     color_a.compute(state)
-                }else{
+                } else {
                     color_b.compute(state)
                 }
-            },
+            }
             // Overlay {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
             // ScreenDodge {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
             // ColorDodge {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
@@ -157,10 +166,9 @@ impl Node for ColorBlendNodes {
             // Lerp {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
             IfElse { predicate, child_a, child_b } => if predicate.compute(state).into_inner() { child_a.compute(state) } else { child_b.compute(state) }
-
         }
     }
 }

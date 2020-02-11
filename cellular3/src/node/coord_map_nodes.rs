@@ -1,6 +1,6 @@
 use crate::{
     datatype::continuous::*,
-    node::{continuous_nodes::*, mutagen_functions::*, discrete_nodes::*, Node},
+    node::{continuous_nodes::*, discrete_nodes::*, mutagen_functions::*, Node},
     updatestate::{CoordinateSet, UpdateState},
 };
 use mutagen::{Generatable, Mutatable};
@@ -63,7 +63,7 @@ impl Node for CoordMapNodes {
                     y: SNFloat::new(
                         f32::sqrt(
                             state.coordinate_set.x.into_inner().powf(2.0)
-                            + state.coordinate_set.y.into_inner().powf(2.0),
+                                + state.coordinate_set.y.into_inner().powf(2.0),
                         )
                         .min(1.0),
                     ),

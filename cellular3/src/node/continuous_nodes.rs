@@ -20,7 +20,6 @@ pub enum AngleNodes {
     // #[mutagen(gen_weight = leaf_node_weight)]
     // #[mutagen(mut_reroll = 0.9)]
     // Random,
-
     #[mutagen(gen_weight = leaf_node_weight)]
     Constant { value: Angle },
 
@@ -58,7 +57,7 @@ impl Node for AngleNodes {
             FromUNFloat { child } => child.compute(state).to_angle(),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
             IfElse {
                 predicate,
@@ -86,7 +85,6 @@ pub enum SNFloatNodes {
 
     // #[mutagen(gen_weight = leaf_node_weight)]
     // Random,
-
     #[mutagen(gen_weight = leaf_node_weight)]
     Constant { value: SNFloat },
 
@@ -148,7 +146,7 @@ impl Node for SNFloatNodes {
             YRatio => state.coordinate_set.y,
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
             NoiseFunction { child } => child.compute(state),
             IfElse {
@@ -251,7 +249,7 @@ impl Node for UNFloatNodes {
             FromGametic => state.coordinate_set.get_unfloat_t(),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
             IfElse {
                 predicate,

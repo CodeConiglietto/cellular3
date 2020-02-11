@@ -5,23 +5,27 @@ use std::{
 };
 
 use ggez::{
-    conf::WindowMode,
+    conf::{WindowMode, WindowSetup},
     event::{self, EventHandler, KeyCode},
-    graphics::{self, spritebatch::SpriteBatch, DrawParam, Image, Rect, WHITE},
+    graphics::{self, Color as GgColor, DrawParam, Image as GgImage, Rect, WHITE},
     input::keyboard,
     timer, Context, ContextBuilder, GameResult,
 };
 use log::{error, info};
 use mutagen::{Generatable, Mutatable};
-use ndarray::{s, Array2};
+use ndarray::{s, Array3, ArrayView1, ArrayView3, ArrayViewMut1, Axis};
 use rand::prelude::*;
 use rayon::prelude::*;
 use structopt::StructOpt;
 
 use crate::{
     constants::*,
-    datatype::{colors::{FloatColor, get_average}, continuous::*, image::IMAGE_PRELOADER},
-    node::{color_nodes::FloatColorNodes, Node},
+    datatype::{
+        colors::{get_average, IntColor},
+        continuous::*,
+        image::IMAGE_PRELOADER,
+    },
+    node::{color_nodes::IntColorNodes, Node},
     opts::Opts,
     updatestate::*,
     util::{DeterministicRng, RNG_SEED},
@@ -42,11 +46,8 @@ fn main() {
 
     let opts = Opts::from_args();
     let (mut ctx, mut event_loop) = ContextBuilder::new("cellular3", "CodeBunny")
-        .window_mode(WindowMode {
-            width: INITIAL_WINDOW_WIDTH,
-            height: INITIAL_WINDOW_HEIGHT,
-            ..WindowMode::default()
-        })
+        .window_mode(WindowMode::default().dimensions(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT))
+        .window_setup(WindowSetup::default().vsync(VSYNC))
         .build()
         .expect("Could not create ggez context!");
 
@@ -84,15 +85,46 @@ fn setup_logging() {
         .unwrap();
 }
 
+#[derive(Debug)]
+pub struct History {
+    cell_arrays: Vec<Array3<u8>>,
+}
+
+impl History {
+    fn new(array_width: usize, array_height: usize, size: usize) -> Self {
+        Self {
+            cell_arrays: (0..size)
+                .map(|_| init_cell_array(array_width, array_height))
+                .collect(),
+        }
+    }
+
+    fn get_raw(&self, x: usize, y: usize, t: usize) -> ArrayView1<u8> {
+        let array = &self.cell_arrays[t % self.cell_arrays.len()];
+        array.slice(s![y % array.dim().0, x % array.dim().1, ..])
+    }
+
+    fn get(&self, x: usize, y: usize, t: usize) -> IntColor {
+        let raw = self.get_raw(x, y, t);
+        IntColor {
+            r: raw[0],
+            g: raw[1],
+            b: raw[2],
+        }
+    }
+}
+
 struct MyGame {
-    //Game draw texture
-    image: Image,
     //Screen bounds
     bounds: Rect,
-    //The actual cell array
-    old_cell_array: Array2<FloatColor>,
-    cell_array: Array2<FloatColor>,
-    new_cell_array: Array2<FloatColor>,
+
+    // The actual cell array
+    // Dimensions are [y, x, c]
+    history: History,
+    next_cell_array: Array3<u8>,
+
+    old_texture: GgImage,
+    current_texture: GgImage,
 
     //rule_sets: [RuleSet; MAX_COLORS],
 
@@ -103,10 +135,10 @@ struct MyGame {
     //The mechanism responsible for creating an initial state if all automata have died
     //reseeder: Reseeder,
     //The root node for the tree that computes the next screen state
-    root_node: Box<FloatColorNodes>,
+    root_node: Box<IntColorNodes>,
 
     tree_dirty: bool,
-    current_sync_tic: i32,
+    current_t: usize,
     rng: DeterministicRng,
     opts: Opts,
 }
@@ -116,8 +148,7 @@ impl MyGame {
         // Load/create resources such as images here.
         let (pixels_x, pixels_y) = ggez::graphics::size(ctx);
 
-        let cells_x = CELL_ARRAY_WIDTH;
-        let cells_y = CELL_ARRAY_HEIGHT;
+        let dummy_texture = GgImage::solid(ctx, 1, WHITE).unwrap();
 
         if let Some(seed) = opts.seed {
             info!("Manually setting RNG seed");
@@ -129,35 +160,17 @@ impl MyGame {
         let mut rng = DeterministicRng::new();
 
         MyGame {
-            // ...
-            image: Image::solid(ctx, 1, WHITE).unwrap(),
-
             bounds: Rect::new(0.0, 0.0, pixels_x, pixels_y),
 
-            old_cell_array: Array2::from_shape_fn((cells_x, cells_y), |(_x, _y)| -> FloatColor {
-                FloatColor {
-                    r: 0.0,
-                    g: 0.0,
-                    b: 0.0,
-                    a: 1.0,
-                }
-            }),
-            cell_array: Array2::from_shape_fn((cells_x, cells_y), |(_x, _y)| -> FloatColor {
-                FloatColor {
-                    r: 0.0,
-                    g: 0.0,
-                    b: 0.0,
-                    a: 1.0,
-                }
-            }),
-            new_cell_array: Array2::from_shape_fn((cells_x, cells_y), |(_x, _y)| -> FloatColor {
-                FloatColor {
-                    r: 0.0,
-                    g: 0.0,
-                    b: 0.0,
-                    a: 1.0,
-                }
-            }),
+            next_cell_array: init_cell_array(CELL_ARRAY_WIDTH, CELL_ARRAY_HEIGHT),
+            history: History::new(
+                CELL_ARRAY_WIDTH,
+                CELL_ARRAY_HEIGHT,
+                CELL_ARRAY_HISTORY_LENGTH,
+            ),
+
+            old_texture: dummy_texture.clone(),
+            current_texture: dummy_texture,
 
             // rule_sets: [
             //     generate_random_rule_set(),
@@ -169,7 +182,6 @@ impl MyGame {
             //     generate_random_rule_set(),
             //     generate_random_rule_set(),
             // ],
-
             rolling_update_stat_total: UpdateStat {
                 activity_value: 0.0,
                 similarity_value: 0.0,
@@ -187,7 +199,7 @@ impl MyGame {
             //     color_table: Array2::from_shape_fn((2, 2), |_| get_random_color()),
             // },
             root_node: Box::new(
-                FloatColorNodes::generate_rng(&mut rng, mutagen::State::default()),
+                IntColorNodes::generate_rng(&mut rng, mutagen::State::default()),
                 // PalletteColorNodes::EqColor {
                 //     child_a: Box::new(PalletteColorNodes::FromUNFloat {
                 //         child: UNFloatNodes::FromSNFloat {
@@ -205,7 +217,7 @@ impl MyGame {
             ),
 
             tree_dirty: true,
-            current_sync_tic: 0,
+            current_t: 0,
             rng,
             opts,
         }
@@ -278,14 +290,14 @@ impl MyGame {
 // }
 
 //Simple color lerp - May be able to find a better one here: https://www.alanzucconi.com/2016/01/06/colour-interpolation/
-fn lerp_float_color(a: FloatColor, b: FloatColor, value: f32) -> FloatColor {
-    FloatColor {
-        r: a.r + (b.r - a.r) * value,
-        g: a.g + (b.g - a.g) * value,
-        b: a.b + (b.b - a.b) * value,
-        a: 1.0, //We don't care about transparency lerping
-    }
-}
+//fn lerp_float_color(a: FloatColor, b: FloatColor, value: f32) -> FloatColor {
+//    FloatColor {
+//        r: a.r + (b.r - a.r) * value,
+//        g: a.g + (b.g - a.g) * value,
+//        b: a.b + (b.b - a.b) * value,
+//        a: 1.0, //We don't care about transparency lerping
+//    }
+//}
 
 #[derive(Default, Clone, Copy)]
 struct UpdateStat {
@@ -344,27 +356,23 @@ impl EventHandler for MyGame {
             self.tree_dirty = true;
         }
 
-        let width = self.cell_array.dim().0 as i32;
-        let height = self.cell_array.dim().1 as i32;
+        let current_t = self.current_t;
 
-        let slice_height = height / TICS_PER_UPDATE;
-        let slice_y = (timer::ticks(ctx) as i32 % TICS_PER_UPDATE) * slice_height;
+        let slice_height = CELL_ARRAY_HEIGHT / TICS_PER_UPDATE;
+        let slice_y = (timer::ticks(ctx) % TICS_PER_UPDATE) * slice_height;
+        let slice_y_range = slice_y..slice_y + slice_height;
 
-        let slice_information = s![0..width, slice_y..slice_y + slice_height];
+        let mut new_update_slice = self.next_cell_array.slice_mut(s![slice_y_range, .., ..]);
+        let new_update_iter = new_update_slice.lanes_mut(Axis(2));
 
-        let current_update_slice = self.cell_array.slice(slice_information);
-        let new_update_slice = self.new_cell_array.slice_mut(slice_information);
+        let history = &self.history;
 
         //let rule_sets = self.rule_sets;
-        let cell_array_view = self.cell_array.view();
-
-        let current_sync_tic = self.current_sync_tic;
 
         let root_node = &self.root_node;
 
-        let total_cells = width * height;
-
-        let update_step = |x, y, current: &FloatColor, new: &mut FloatColor| {
+        let update_step = |y, x, mut new: ArrayViewMut1<u8>| {
+            let total_cells = CELL_ARRAY_WIDTH * CELL_ARRAY_HEIGHT;
             // let neighbour_result =
             //     get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
 
@@ -373,40 +381,44 @@ impl EventHandler for MyGame {
                     x: UNFloat::new(x as f32 / CELL_ARRAY_WIDTH as f32).to_signed(),
                     y: UNFloat::new((y + slice_y as usize) as f32 / CELL_ARRAY_HEIGHT as f32)
                         .to_signed(),
-                    t: current_sync_tic as f32,
+                    t: current_t as f32,
                 },
-                cell_array: cell_array_view,
+                history,
             }); //get_next_color(rule_sets, *current, neighbour_result.0);
 
-            let older_color = *new;
-            *new = new_color;
+            new[0] = new_color.r;
+            new[1] = new_color.g;
+            new[2] = new_color.b;
+
+            let current_color = history.get(x, y, current_t);
+            let older_color = history.get(x, y, usize::max(current_t, 1) - 1);
 
             UpdateStat {
                 //Two checks are necessary to avoid two tic oscillators being counted as active cells
-                activity_value: ((get_average(older_color) - get_average(new_color)) / total_cells as f32).abs(),
+                activity_value: ((get_average(older_color.into()) - get_average(new_color.into()))
+                    / total_cells as f32)
+                    .abs(),
                 similarity_value: 0.0, //neighbour_result.1,
             }
         };
 
-        let zip = ndarray::Zip::indexed(current_update_slice).and(new_update_slice);
+        let zip = ndarray::Zip::indexed(new_update_iter);
 
         let slice_update_stat: UpdateStat = if PARALLELIZE {
             zip.into_par_iter()
-                .map(|((x, y), current, new)| update_step(x, y, current, new))
+                .map(|((y, x), new)| update_step(y, x, new))
                 .sum()
         } else {
             let mut stat = UpdateStat::default();
-            zip.apply(|(x, y), current, new| stat += update_step(x, y, current, new));
+            zip.apply(|(y, x), new| stat += update_step(y, x, new));
             stat
         };
 
         self.rolling_update_stat_total += slice_update_stat;
 
-        if timer::ticks(ctx) as i32 % TICS_PER_UPDATE == 0 {
-            self.current_sync_tic += 1;
-
+        if timer::ticks(ctx) % TICS_PER_UPDATE == 0 {
             self.average_update_stat =
-               (self.average_update_stat + self.rolling_update_stat_total) / 2.0;
+                (self.average_update_stat + self.rolling_update_stat_total) / 2.0;
 
             // let sqrt_stagnant_cells =
             //     ((total_cells - slice_update_stat.active_cells) as f32).sqrt() as i32;
@@ -450,17 +462,30 @@ impl EventHandler for MyGame {
                 similarity_value: 0.0,
             };
 
-            if self.tree_dirty || self.rng.gen::<f32>() * dbg!(self.average_update_stat.activity_value) < 0.01{
-                info!("====TIC: {} MUTATING TREE====", self.current_sync_tic);
+            if self.tree_dirty
+                || self
+                    .rng
+                    .gen_range(0.0, dbg!(self.average_update_stat.activity_value) as f64)
+                    < 0.1
+            {
+                info!("====TIC: {} MUTATING TREE====", self.current_t);
                 self.root_node
                     .mutate_rng(&mut self.rng, mutagen::State::default());
                 info!("{:#?}", &self.root_node);
                 self.tree_dirty = false;
             }
 
-            //Rotate the three buffers by swapping
-            std::mem::swap(&mut self.cell_array, &mut self.old_cell_array);
-            std::mem::swap(&mut self.cell_array, &mut self.new_cell_array);
+            std::mem::swap(&mut self.old_texture, &mut self.current_texture);
+            self.current_texture = compute_texture(ctx, self.next_cell_array.view());
+
+            // Rotate the buffers by swapping
+            let h_len = self.history.cell_arrays.len();
+            std::mem::swap(
+                &mut self.history.cell_arrays[current_t % h_len],
+                &mut self.next_cell_array,
+            );
+
+            self.current_t += 1;
         }
 
         timer::yield_now();
@@ -470,35 +495,44 @@ impl EventHandler for MyGame {
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx, graphics::WHITE);
-        let mut sprite_batch = SpriteBatch::new(self.image.clone());
 
-        let cell_array_width = self.cell_array.dim().0;
-        let cell_array_height = self.cell_array.dim().1;
+        let base_params = DrawParam::new().dest([0.0, 0.0]).scale([
+            self.bounds.w as f32 / CELL_ARRAY_WIDTH as f32,
+            self.bounds.h as f32 / CELL_ARRAY_HEIGHT as f32,
+        ]);
 
-        let cell_width = self.bounds.w as f32 / cell_array_width as f32;
-        let cell_height = self.bounds.h as f32 / cell_array_height as f32;
+        let lerp_value = (timer::ticks(ctx) % TICS_PER_UPDATE) as f32 / TICS_PER_UPDATE as f32;
 
-        let lerp_value =
-            (timer::ticks(ctx) as i32 % TICS_PER_UPDATE) as f32 / TICS_PER_UPDATE as f32;
+        ggez::graphics::draw(ctx, &self.old_texture, base_params)?;
+        ggez::graphics::draw(
+            ctx,
+            &self.current_texture,
+            base_params.color(GgColor::new(1.0, 1.0, 1.0, lerp_value)),
+        )?;
 
-        for x in 0..cell_array_width {
-            for y in 0..cell_array_height {
-                let old = &self.old_cell_array[[x, y]];
-                let current = &self.cell_array[[x, y]];
+        graphics::present(ctx)?;
 
-                let lerped_color = lerp_float_color(*old, *current, lerp_value);
-
-                sprite_batch.add(DrawParam {
-                    dest: [x as f32 * cell_width, y as f32 * cell_height].into(),
-                    scale: [cell_width, cell_height].into(),
-                    color: lerped_color,
-                    ..DrawParam::default()
-                });
-            }
-        }
-
-        ggez::graphics::draw(ctx, &sprite_batch, DrawParam::default())?;
-
-        graphics::present(ctx)
+        Ok(())
     }
+}
+
+fn init_cell_array(width: usize, height: usize) -> Array3<u8> {
+    Array3::from_shape_fn(
+        (height, width, 4),
+        |(_y, _x, c)| if c == 3 { 255 } else { 0 },
+    )
+}
+
+fn compute_texture(ctx: &mut Context, cell_array: ArrayView3<u8>) -> GgImage {
+    let (height, width, _) = cell_array.dim();
+    let mut image = GgImage::from_rgba8(
+        ctx,
+        width as u16,
+        height as u16,
+        cell_array.as_slice().unwrap(),
+    )
+    .unwrap();
+
+    image.set_filter(ggez::graphics::FilterMode::Nearest);
+    image
 }

@@ -1,3 +1,5 @@
+use std::num::Wrapping;
+
 use mutagen::{Generatable, Mutatable};
 
 use rand::prelude::*;
@@ -27,43 +29,41 @@ impl Mutatable for Boolean {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Byte {
-    pub value: u8,
+    pub value: Wrapping<u8>,
 }
 
 impl Byte {
     pub fn new(value: u8) -> Self {
-        Self { value }
+        Self {
+            value: Wrapping(value),
+        }
     }
 
     pub fn into_inner(self) -> u8 {
-        self.value
+        self.value.0
     }
 
     pub fn add(self, other: Self) -> Self {
-        Self::new(self.into_inner() + other.into_inner())
+        Self::new((self.value + other.value).0)
     }
 
     pub fn divide(self, other: Self) -> Self {
-        let other_val = other.into_inner();
-
-        if other_val == 0 {
-            Self::new(other_val)
+        if other.value.0 == 0 {
+            Self::new(other.value.0)
         } else {
-            Self::new(self.into_inner() / other.into_inner())
+            Self::new((self.value / other.value).0)
         }
     }
 
     pub fn multiply(self, other: Self) -> Self {
-        Self::new(self.into_inner() * other.into_inner())
+        Self::new((self.value * other.value).0)
     }
 
     pub fn modulus(self, other: Self) -> Self {
-        let other_val = other.into_inner();
-
-        if other_val == 0 {
-            Self::new(other_val)
+        if other.value.0 == 0 {
+            Self::new(other.value.0)
         } else {
-            Self::new(self.into_inner() % other.into_inner())
+            Self::new((self.value % other.value).0)
         }
     }
 }
@@ -82,43 +82,41 @@ impl Mutatable for Byte {
 
 #[derive(Clone, Copy, Debug)]
 pub struct UInt {
-    pub value: u32,
+    pub value: Wrapping<u32>,
 }
 
 impl UInt {
     pub fn new(value: u32) -> Self {
-        Self { value: value }
+        Self {
+            value: Wrapping(value),
+        }
     }
 
     pub fn into_inner(self) -> u32 {
-        self.value
+        self.value.0
     }
 
     pub fn add(self, other: Self) -> Self {
-        Self::new(self.into_inner() + other.into_inner())
+        Self::new((self.value + other.value).0)
     }
 
     pub fn divide(self, other: Self) -> Self {
-        let other_val = other.into_inner();
-
-        if other_val == 0 {
-            Self::new(other_val)
+        if other.value.0 == 0 {
+            Self::new(other.value.0)
         } else {
-            Self::new(self.into_inner() / other.into_inner())
+            Self::new((self.value / other.value).0)
         }
     }
 
     pub fn multiply(self, other: Self) -> Self {
-        Self::new(self.into_inner() * other.into_inner())
+        Self::new((self.value * other.value).0)
     }
 
     pub fn modulus(self, other: Self) -> Self {
-        let other_val = other.into_inner();
-
-        if other_val == 0 {
-            Self::new(other_val)
+        if other.value.0 == 0 {
+            Self::new(other.value.0)
         } else {
-            Self::new(self.into_inner() / other.into_inner())
+            Self::new((self.value % other.value).0)
         }
     }
 }
@@ -137,43 +135,41 @@ impl Mutatable for UInt {
 
 #[derive(Clone, Copy, Debug)]
 pub struct SInt {
-    pub value: i32,
+    pub value: Wrapping<i32>,
 }
 
 impl SInt {
     pub fn new(value: i32) -> Self {
-        Self { value: value }
+        Self {
+            value: Wrapping(value),
+        }
     }
 
     pub fn into_inner(self) -> i32 {
-        self.value
+        self.value.0
     }
 
     pub fn add(self, other: Self) -> Self {
-        Self::new(self.into_inner() + other.into_inner())
+        Self::new((self.value + other.value).0)
     }
 
     pub fn divide(self, other: Self) -> Self {
-        let other_val = other.into_inner();
-
-        if other_val == 0 {
-            Self::new(other_val)
+        if other.value.0 == 0 {
+            Self::new(other.value.0)
         } else {
-            Self::new(self.into_inner() / other.into_inner())
+            Self::new((self.value / other.value).0)
         }
     }
 
     pub fn multiply(self, other: Self) -> Self {
-        Self::new(self.into_inner() * other.into_inner())
+        Self::new((self.value * other.value).0)
     }
 
     pub fn modulus(self, other: Self) -> Self {
-        let other_val = other.into_inner();
-
-        if other_val == 0 {
-            Self::new(other_val)
+        if other.value.0 == 0 {
+            Self::new(other.value.0)
         } else {
-            Self::new(self.into_inner() / other.into_inner())
+            Self::new((self.value % other.value).0)
         }
     }
 }

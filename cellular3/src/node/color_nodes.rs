@@ -4,21 +4,19 @@ use crate::{
     constants::*,
     datatype::{colors::*, image::*},
     node::{
-        color_blend_nodes::*,
-        continuous_nodes::*, 
-        coord_map_nodes::*, 
-        discrete_nodes::*, 
-        mutagen_functions::*, 
-        Node,
+        color_blend_nodes::*, continuous_nodes::*, coord_map_nodes::*, discrete_nodes::*,
+        mutagen_functions::*, Node,
     },
     updatestate::UpdateState,
 };
 use mutagen::{Generatable, Mutatable};
-use ndarray::prelude::*;
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
 pub enum FloatColorNodes {
+    #[mutagen(gen_weight = leaf_node_weight)]
+    Gray,
+
     #[mutagen(gen_weight = pipe_node_weight)]
     Grayscale { child: Box<UNFloatNodes> },
 
@@ -39,9 +37,6 @@ pub enum FloatColorNodes {
     #[mutagen(gen_weight = pipe_node_weight)]
     FromBlend { child: Box<ColorBlendNodes> },
 
-    #[mutagen(gen_weight = leaf_node_weight)]
-    FromCellArray,
-
     #[mutagen(gen_weight = pipe_node_weight)]
     FromPalletteColor { child: Box<PalletteColorNodes> },
 
@@ -53,24 +48,13 @@ pub enum FloatColorNodes {
         child: Box<FloatColorNodes>,
         child_state: Box<CoordMapNodes>,
     },
+
     #[mutagen(gen_weight = branch_node_weight)]
     IfElse {
         predicate: Box<BooleanNodes>,
         child_a: Box<Self>,
         child_b: Box<Self>,
     },
-}
-
-// This function assumes an x and y between the ranges -dim().<dimension>..infinity
-fn wrap_point_to_cell_array(
-    cell_array: ArrayView2<'_, FloatColor>,
-    x: usize,
-    y: usize,
-) -> (usize, usize) {
-    let width = cell_array.dim().0 as usize;
-    let height = cell_array.dim().1 as usize;
-
-    ((x % width + width) % width, (y % height + height) % height)
 }
 
 impl Node for FloatColorNodes {
@@ -80,6 +64,12 @@ impl Node for FloatColorNodes {
         use FloatColorNodes::*;
 
         match self {
+            Gray => FloatColor {
+                r: 1.0,
+                g: 1.0,
+                b: 1.0,
+                a: 1.0,
+            },
             Grayscale { child } => {
                 let value = child.compute(state).into_inner() as f32;
                 FloatColor {
@@ -88,7 +78,7 @@ impl Node for FloatColorNodes {
                     b: value,
                     a: 1.0,
                 }
-            },
+            }
             RGB { r, g, b } => FloatColor {
                 r: r.compute(state).into_inner() as f32,
                 g: g.compute(state).into_inner() as f32,
@@ -104,25 +94,25 @@ impl Node for FloatColorNodes {
                 .into();
 
                 float_color_from_pallette_rgb(rgb)
-            },
+            }
             FromBlend { child } => child.compute(state),
-            FromCellArray => {
-                let (x, y) = wrap_point_to_cell_array(
-                    state.cell_array.view(),
-                    ((state.coordinate_set.x.into_inner() + 1.0) * 0.5 * CELL_ARRAY_WIDTH as f32)
-                        as usize,
-                    ((state.coordinate_set.y.into_inner() + 1.0) * 0.5 * CELL_ARRAY_HEIGHT as f32)
-                        as usize,
-                );
-                state.cell_array[[x as usize, y as usize]]
-            },
             FromPalletteColor { child } => FloatColor::from(child.compute(state)),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
             FromIntColor { child } => FloatColor::from(child.compute(state)),
-            IfElse { predicate, child_a, child_b } => if predicate.compute(state).into_inner() { child_a.compute(state) } else { child_b.compute(state) }
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }
@@ -213,9 +203,19 @@ impl Node for PalletteColorNodes {
             FromFloatColor { child } => PalletteColor::from_float_color(child.compute(state)),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
-            IfElse { predicate, child_a, child_b } => if predicate.compute(state).into_inner() { child_a.compute(state) } else { child_b.compute(state) }
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }
@@ -241,6 +241,10 @@ pub enum IntColorNodes {
         child: Box<IntColorNodes>,
         child_state: Box<CoordMapNodes>,
     },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    FromCellArray,
+
     #[mutagen(gen_weight = branch_node_weight)]
     IfElse {
         predicate: Box<BooleanNodes>,
@@ -269,8 +273,15 @@ impl Node for IntColorNodes {
             },
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
+            FromCellArray => state.history.get(
+                ((state.coordinate_set.x.into_inner() + 1.0) * 0.5 * CELL_ARRAY_WIDTH as f32)
+                    as usize,
+                ((state.coordinate_set.y.into_inner() + 1.0) * 0.5 * CELL_ARRAY_HEIGHT as f32)
+                    as usize,
+                state.coordinate_set.t as usize,
+            ),
             IfElse {
                 predicate,
                 child_a,
