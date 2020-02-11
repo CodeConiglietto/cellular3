@@ -17,36 +17,39 @@ mod mutagen_functions {
     use crate::{constants::*, util::*};
 
     pub fn leaf_node_weight(state: &mutagen::State) -> f64 {
-        if state.depth < MIN_LEAF_DEPTH || state.depth > MAX_LEAF_DEPTH {
+        if state.depth < CONSTS.min_leaf_depth || state.depth > CONSTS.max_leaf_depth {
             0.0
         } else {
             map_range(
                 state.depth as f32,
-                (MIN_LEAF_DEPTH as f32, MAX_LEAF_DEPTH as f32),
+                (CONSTS.min_leaf_depth as f32, CONSTS.max_leaf_depth as f32),
                 (0.0, 1.0),
             ) as f64
         }
     }
 
     pub fn pipe_node_weight(state: &mutagen::State) -> f64 {
-        if state.depth < MIN_PIPE_DEPTH || state.depth > MAX_PIPE_DEPTH {
+        if state.depth < CONSTS.min_pipe_depth || state.depth > CONSTS.max_pipe_depth {
             0.0
         } else {
             1.0 - map_range(
                 state.depth as f32,
-                (MIN_PIPE_DEPTH as f32, MAX_PIPE_DEPTH as f32),
+                (CONSTS.min_pipe_depth as f32, CONSTS.max_pipe_depth as f32),
                 (0.0, 1.0),
             ) as f64
         }
     }
 
     pub fn branch_node_weight(state: &mutagen::State) -> f64 {
-        if state.depth < MIN_BRANCH_DEPTH || state.depth > MAX_BRANCH_DEPTH {
+        if state.depth < CONSTS.min_branch_depth || state.depth > CONSTS.max_branch_depth {
             0.0
         } else {
             1.0 - map_range(
                 state.depth as f32,
-                (MIN_BRANCH_DEPTH as f32, MAX_BRANCH_DEPTH as f32),
+                (
+                    CONSTS.min_branch_depth as f32,
+                    CONSTS.max_branch_depth as f32,
+                ),
                 (0.0, 1.0),
             ) as f64
         }

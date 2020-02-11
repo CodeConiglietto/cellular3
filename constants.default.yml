@@ -1,0 +1,37 @@
+tics_per_update: 42
+
+initial_window_width: 1600.0
+initial_window_height: 900.0
+vsync: false
+
+cell_array_width: 800
+cell_array_height: 450
+cell_array_history_length: 4
+
+noise_x_scale_factor: 4.0
+noise_y_scale_factor: 4.0
+noise_t_scale_factor: 0.5
+noise_x_scale_minimum: 0.001
+noise_y_scale_minimum: 0.001
+noise_t_scale_minimum: 0.5
+
+image_path: C:\Users\admin\Documents\Project Assets\Cellular\Images\!WorkAppropriate
+
+byte_max_value: 255
+byte_possible_values: 256
+
+max_neighbour_array_count: 9 
+max_neighbour_count: 8
+
+max_colors: 8
+
+parallelize: false
+
+min_leaf_depth: 1
+max_leaf_depth: 1000
+
+min_pipe_depth: 1
+max_pipe_depth: 10
+
+min_branch_depth: 0
+max_branch_depth: 5

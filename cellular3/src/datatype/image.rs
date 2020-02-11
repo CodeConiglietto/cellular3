@@ -22,7 +22,7 @@ use crate::{
 pub const MODULE_PATH: &str = module_path!();
 
 lazy_static! {
-    static ref ALL_IMAGES: Vec<PathBuf> = util::collect_filenames(IMAGE_PATH);
+    static ref ALL_IMAGES: Vec<PathBuf> = util::collect_filenames(&CONSTS.image_path);
     static ref FALLBACK_IMAGE: Image = Image::load(
         String::from("<FALLBACK>"),
         Cursor::new(FALLBACK_IMAGE_DATA),
@@ -149,8 +149,8 @@ fn load_frames<R: BufRead + Seek>(
             .map(|f| {
                 imageops::resize(
                     &DynamicImage::ImageRgba8(f.into_buffer()).to_rgb(),
-                    CELL_ARRAY_WIDTH as u32,
-                    CELL_ARRAY_HEIGHT as u32,
+                    CONSTS.cell_array_width as u32,
+                    CONSTS.cell_array_height as u32,
                     FilterType::Gaussian,
                 )
             })
@@ -158,8 +158,8 @@ fn load_frames<R: BufRead + Seek>(
 
         _ => Ok(vec![imageops::resize(
             &image::load(reader, format)?.to_rgb(),
-            CELL_ARRAY_WIDTH as u32,
-            CELL_ARRAY_HEIGHT as u32,
+            CONSTS.cell_array_width as u32,
+            CONSTS.cell_array_height as u32,
             FilterType::Gaussian,
         )]),
     }

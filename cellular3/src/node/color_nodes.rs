@@ -198,7 +198,7 @@ impl Node for PalletteColorNodes {
                 b.compute(state).into_inner(),
             ]),
             FromUNFloat { child } => PalletteColor::from_index(
-                (child.compute(state).into_inner() * 0.99 * (MAX_COLORS) as f32) as usize,
+                (child.compute(state).into_inner() * 0.99 * (CONSTS.max_colors) as f32) as usize,
             ),
             FromFloatColor { child } => PalletteColor::from_float_color(child.compute(state)),
             ModifyState { child, child_state } => child.compute(UpdateState {
@@ -276,10 +276,11 @@ impl Node for IntColorNodes {
                 ..state
             }),
             FromCellArray => state.history.get(
-                ((state.coordinate_set.x.into_inner() + 1.0) * 0.5 * CELL_ARRAY_WIDTH as f32)
+                ((state.coordinate_set.x.into_inner() + 1.0) * 0.5 * CONSTS.cell_array_width as f32)
                     as usize,
-                ((state.coordinate_set.y.into_inner() + 1.0) * 0.5 * CELL_ARRAY_HEIGHT as f32)
-                    as usize,
+                ((state.coordinate_set.y.into_inner() + 1.0)
+                    * 0.5
+                    * CONSTS.cell_array_height as f32) as usize,
                 state.coordinate_set.t as usize,
             ),
             IfElse {
