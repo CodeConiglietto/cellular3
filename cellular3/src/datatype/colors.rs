@@ -2,7 +2,13 @@ use mutagen::{Generatable, Mutatable};
 use palette::rgb::Rgb;
 use rand::prelude::*;
 
+use crate::datatype::continuous::*;
+
 pub type FloatColor = ggez::graphics::Color;
+
+pub fn get_average(c: FloatColor) -> f32 {
+    (c.r + c.b + c.g) / 3.0
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct IntColor {
@@ -67,6 +73,37 @@ pub fn float_color_from_pallette_rgb(rgb: Rgb) -> FloatColor {
         g: rgb.green as f32,
         b: rgb.blue as f32,
         a: 1.0,
+    }
+}
+
+//Translated to rust from an answer here here: https://stackoverflow.com/questions/23090019/fastest-formula-to-get-hue-from-rgb
+pub fn get_hue_unfloat(c: FloatColor) -> UNFloat {
+    let r = c.r;
+    let g = c.g;
+    let b = c.b;
+
+    let min = r.min(g.min(b));
+    let max = r.min(g.min(b));
+
+    if min == max {
+        UNFloat::new(0.0)
+    } else {
+        let mut hue;
+        if max == r {
+            hue = (g - b) / (max - min);
+        } else if max == g {
+            hue = 2.0 + (b - r) / (max - min);
+        } else {
+            hue = 4.0 + (r - g) / (max - min);
+        }
+
+        hue = hue * 60.0;
+
+        if hue < 0.0 {
+            hue += 360.0;
+        }
+
+        UNFloat::new(hue / 360.0)
     }
 }
 

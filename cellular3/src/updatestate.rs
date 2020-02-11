@@ -1,9 +1,8 @@
 use crate::{
     constants::*,
-    datatype::{colors::FloatColor, continuous::*, discrete::*},
+    datatype::{continuous::*, discrete::*},
     History,
 };
-use ndarray::prelude::*;
 
 #[derive(Clone, Copy, Debug)]
 pub struct UpdateState<'a> {

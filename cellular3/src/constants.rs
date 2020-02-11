@@ -1,7 +1,8 @@
-pub const TICS_PER_UPDATE: usize = 5;
+pub const TICS_PER_UPDATE: usize = 6;
 
 pub const INITIAL_WINDOW_WIDTH: f32 = 1600.0;
 pub const INITIAL_WINDOW_HEIGHT: f32 = 900.0;
+pub const VSYNC: bool = false;
 
 pub const CELL_ARRAY_WIDTH: usize = 400;
 pub const CELL_ARRAY_HEIGHT: usize = 225;
@@ -9,7 +10,7 @@ pub const CELL_ARRAY_HISTORY_LENGTH: usize = 4;
 
 pub const NOISE_X_SCALE_FACTOR: f64 = 4.0;
 pub const NOISE_Y_SCALE_FACTOR: f64 = 4.0;
-pub const NOISE_T_SCALE_FACTOR: f64 = 1.0;
+pub const NOISE_T_SCALE_FACTOR: f64 = 0.5;
 pub const _NOISE_X_SCALE_MINIMUM: f64 = 0.001;
 pub const _NOISE_Y_SCALE_MINIMUM: f64 = 0.001;
 pub const _NOISE_T_SCALE_MINIMUM: f64 = 0.5;

@@ -1,6 +1,9 @@
 use crate::{
-    datatype::continuous::*,
-    node::{color_nodes::*, coord_map_nodes::*, mutagen_functions::*, noise_nodes::*, Node},
+    datatype::{colors::*, continuous::*},
+    node::{
+        color_nodes::*, coord_map_nodes::*, discrete_nodes::*, mutagen_functions::*,
+        noise_nodes::*, Node,
+    },
     updatestate::*,
 };
 use mutagen::{Generatable, Mutatable};
@@ -14,10 +17,9 @@ pub enum AngleNodes {
     #[mutagen(gen_weight = pipe_node_weight)]
     ArcCos { theta: Box<SNFloatNodes> },
 
-    #[mutagen(gen_weight = leaf_node_weight)]
-    #[mutagen(mut_reroll = 0.9)]
-    Random,
-
+    // #[mutagen(gen_weight = leaf_node_weight)]
+    // #[mutagen(mut_reroll = 0.9)]
+    // Random,
     #[mutagen(gen_weight = leaf_node_weight)]
     Constant { value: Angle },
 
@@ -32,6 +34,12 @@ pub enum AngleNodes {
         child: Box<AngleNodes>,
         child_state: Box<CoordMapNodes>,
     },
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
+    },
 }
 
 impl Node for AngleNodes {
@@ -43,7 +51,7 @@ impl Node for AngleNodes {
         match self {
             ArcSin { theta } => Angle::new(f32::asin(theta.compute(state).into_inner())),
             ArcCos { theta } => Angle::new(f32::acos(theta.compute(state).into_inner())),
-            Random => Angle::generate(),
+            // Random => Angle::generate(),
             Constant { value } => *value,
             FromSNFloat { child } => child.compute(state).to_angle(),
             FromUNFloat { child } => child.compute(state).to_angle(),
@@ -51,6 +59,17 @@ impl Node for AngleNodes {
                 coordinate_set: child_state.compute(state),
                 ..state
             }),
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }
@@ -64,9 +83,8 @@ pub enum SNFloatNodes {
     #[mutagen(gen_weight = pipe_node_weight)]
     Cos { child: Box<AngleNodes> },
 
-    #[mutagen(gen_weight = leaf_node_weight)]
-    Random,
-
+    // #[mutagen(gen_weight = leaf_node_weight)]
+    // Random,
     #[mutagen(gen_weight = leaf_node_weight)]
     Constant { value: SNFloat },
 
@@ -99,6 +117,12 @@ pub enum SNFloatNodes {
         child: Box<SNFloatNodes>,
         child_state: Box<CoordMapNodes>,
     },
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
+    },
 }
 
 impl Node for SNFloatNodes {
@@ -110,7 +134,7 @@ impl Node for SNFloatNodes {
         match self {
             Sin { child } => SNFloat::new(f32::sin(child.compute(state).into_inner())),
             Cos { child } => SNFloat::new(f32::cos(child.compute(state).into_inner())),
-            Random => SNFloat::generate(),
+            // Random => SNFloat::generate(),
             FromAngle { child } => child.compute(state).to_signed(),
             FromUNFloat { child } => child.compute(state).to_signed(),
             Constant { value } => *value,
@@ -125,6 +149,17 @@ impl Node for SNFloatNodes {
                 ..state
             }),
             NoiseFunction { child } => child.compute(state),
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }
@@ -132,8 +167,8 @@ impl Node for SNFloatNodes {
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
 pub enum UNFloatNodes {
-    #[mutagen(gen_weight = leaf_node_weight)]
-    Random,
+    // #[mutagen(gen_weight = leaf_node_weight)]
+    // Random,
     #[mutagen(gen_weight = leaf_node_weight)]
     Constant { value: UNFloat },
     #[mutagen(gen_weight = pipe_node_weight)]
@@ -164,10 +199,20 @@ pub enum UNFloatNodes {
     ColorComponentG { child: Box<FloatColorNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
     ColorComponentB { child: Box<FloatColorNodes> },
+    #[mutagen(gen_weight = pipe_node_weight)]
+    ColorComponentH { child: Box<FloatColorNodes> },
+    #[mutagen(gen_weight = leaf_node_weight)]
+    FromGametic,
     #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<UNFloatNodes>,
         child_state: Box<CoordMapNodes>,
+    },
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
     },
 }
 
@@ -178,7 +223,7 @@ impl Node for UNFloatNodes {
         use UNFloatNodes::*;
 
         match self {
-            Random => UNFloat::generate(),
+            // Random => UNFloat::generate(),
             Constant { value } => *value,
             FromAngle { child } => child.compute(state).to_unsigned(),
             FromSNFloat { child } => child.compute(state).to_unsigned(),
@@ -200,10 +245,23 @@ impl Node for UNFloatNodes {
             ColorComponentR { child } => UNFloat::new(child.compute(state).r),
             ColorComponentG { child } => UNFloat::new(child.compute(state).g),
             ColorComponentB { child } => UNFloat::new(child.compute(state).b),
+            ColorComponentH { child } => get_hue_unfloat(child.compute(state)),
+            FromGametic => state.coordinate_set.get_unfloat_t(),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
                 ..state
             }),
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }

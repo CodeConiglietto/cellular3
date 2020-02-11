@@ -1,6 +1,6 @@
 use crate::{
     datatype::continuous::*,
-    node::{continuous_nodes::*, mutagen_functions::*, Node},
+    node::{continuous_nodes::*, discrete_nodes::*, mutagen_functions::*, Node},
     updatestate::{CoordinateSet, UpdateState},
 };
 use mutagen::{Generatable, Mutatable};
@@ -25,6 +25,12 @@ pub enum CoordMapNodes {
 
     #[mutagen(gen_weight = leaf_node_weight)]
     FromPolar,
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
+    },
 }
 
 impl Node for CoordMapNodes {
@@ -49,9 +55,10 @@ impl Node for CoordMapNodes {
                 let state_y = state.coordinate_set.y.into_inner();
 
                 CoordinateSet {
-                    //Represents the angle from 0.0..1.0
-                    //atan2(y, x) is correct. Don't ask me why.
-                    x: Angle::new(f32::atan2(state_y, state_x)).to_signed(),
+                    //Represents the angle from 0.0..2PI
+                    //atan2(y, x) is correct, but it's more visually appealing to have the axis of symmetry along the vertical axis
+                    //Sorry if this makes me a bad person :<
+                    x: Angle::new(f32::atan2(-state_x, state_y)).to_signed(),
                     //Represents the radius between 0.0..1.0
                     y: SNFloat::new(
                         f32::sqrt(
@@ -65,19 +72,26 @@ impl Node for CoordMapNodes {
             }
             FromPolar => CoordinateSet {
                 x: SNFloat::new(
-                    (state.coordinate_set.y.into_inner()
-                        * f32::cos(state.coordinate_set.x.into_inner()))
-                    .min(1.0)
-                    .max(-1.0),
+                    state.coordinate_set.y.into_inner()
+                        * f32::cos(state.coordinate_set.x.into_inner()),
                 ),
                 y: SNFloat::new(
-                    (state.coordinate_set.y.into_inner()
-                        * f32::sin(state.coordinate_set.x.into_inner()))
-                    .min(1.0)
-                    .max(-1.0),
+                    state.coordinate_set.y.into_inner()
+                        * f32::sin(state.coordinate_set.x.into_inner()),
                 ),
                 t: state.coordinate_set.t,
             },
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }

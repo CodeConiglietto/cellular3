@@ -32,12 +32,18 @@ pub enum BooleanNodes {
     #[mutagen(gen_weight = leaf_node_weight)]
     Constant { child: Boolean },
     #[mutagen(mut_reroll = 0.9)]
-    #[mutagen(gen_weight = leaf_node_weight)]
-    Random,
+    // #[mutagen(gen_weight = leaf_node_weight)]
+    // Random,
     #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<BooleanNodes>,
         child_state: Box<CoordMapNodes>,
+    },
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
     },
 }
 
@@ -64,11 +70,22 @@ impl Node for BooleanNodes {
                 value: !child.compute(state).into_inner(),
             },
             Constant { child } => *child,
-            Random => Boolean::generate(),
+            // Random => Boolean::generate(),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
                 ..state
             }),
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }
@@ -77,8 +94,8 @@ impl Node for BooleanNodes {
 pub enum ByteNodes {
     #[mutagen(gen_weight = leaf_node_weight)]
     Constant { value: Byte },
-    #[mutagen(gen_weight = leaf_node_weight)]
-    Random,
+    // #[mutagen(gen_weight = leaf_node_weight)]
+    // Random,
     #[mutagen(gen_weight = branch_node_weight)]
     Add {
         child_a: Box<ByteNodes>,
@@ -101,6 +118,12 @@ pub enum ByteNodes {
     },
     #[mutagen(gen_weight = leaf_node_weight)]
     FromGametic,
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
+    },
     // InvertNormalised { child: Box<ByteNodes> },
 }
 
@@ -112,7 +135,7 @@ impl Node for ByteNodes {
 
         match self {
             Constant { value } => *value,
-            Random => Byte::generate(),
+            // Random => Byte::generate(),
             Add { child_a, child_b } => child_a.compute(state).add(child_b.compute(state)),
             Multiply { child_a, child_b } => {
                 child_a.compute(state).multiply(child_b.compute(state))
@@ -130,6 +153,17 @@ impl Node for ByteNodes {
                 .compute(state)
                 .modulus(child_divisor.compute(state)),
             FromGametic => state.coordinate_set.get_byte_t(),
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }
@@ -138,8 +172,8 @@ impl Node for ByteNodes {
 pub enum UIntNodes {
     #[mutagen(gen_weight = leaf_node_weight)]
     Constant { value: UInt },
-    #[mutagen(gen_weight = leaf_node_weight)]
-    Random,
+    // #[mutagen(gen_weight = leaf_node_weight)]
+    // Random,
     #[mutagen(gen_weight = branch_node_weight)]
     Add {
         child_a: Box<UIntNodes>,
@@ -162,6 +196,12 @@ pub enum UIntNodes {
     },
     #[mutagen(gen_weight = leaf_node_weight)]
     FromGametic,
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
+    },
 }
 
 impl Node for UIntNodes {
@@ -172,7 +212,7 @@ impl Node for UIntNodes {
 
         match self {
             Constant { value } => *value,
-            Random => UInt::generate(),
+            // Random => UInt::generate(),
             Add { child_a, child_b } => child_a.compute(state).add(child_b.compute(state)),
             Multiply { child_a, child_b } => {
                 child_a.compute(state).multiply(child_b.compute(state))
@@ -190,6 +230,17 @@ impl Node for UIntNodes {
                 .compute(state)
                 .modulus(child_divisor.compute(state)),
             FromGametic => UInt::new(state.coordinate_set.t as u32),
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }
@@ -198,8 +249,8 @@ impl Node for UIntNodes {
 pub enum SIntNodes {
     #[mutagen(gen_weight = leaf_node_weight)]
     Constant { value: SInt },
-    #[mutagen(gen_weight = leaf_node_weight)]
-    Random,
+    // #[mutagen(gen_weight = leaf_node_weight)]
+    // Random,
     #[mutagen(gen_weight = branch_node_weight)]
     Add {
         child_a: Box<SIntNodes>,
@@ -220,6 +271,12 @@ pub enum SIntNodes {
         child_value: Box<SIntNodes>,
         child_divisor: Box<SIntNodes>,
     },
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
+    },
 }
 
 impl Node for SIntNodes {
@@ -230,7 +287,7 @@ impl Node for SIntNodes {
 
         match self {
             Constant { value } => *value,
-            Random => SInt::generate(),
+            // Random => SInt::generate(),
             Add { child_a, child_b } => child_a.compute(state).add(child_b.compute(state)),
             Multiply { child_a, child_b } => {
                 child_a.compute(state).multiply(child_b.compute(state))
@@ -247,6 +304,17 @@ impl Node for SIntNodes {
             } => child_value
                 .compute(state)
                 .modulus(child_divisor.compute(state)),
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }

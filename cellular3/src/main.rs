@@ -5,7 +5,7 @@ use std::{
 };
 
 use ggez::{
-    conf::WindowMode,
+    conf::{WindowMode, WindowSetup},
     event::{self, EventHandler, KeyCode},
     graphics::{self, Color as GgColor, DrawParam, Image as GgImage, Rect, WHITE},
     input::keyboard,
@@ -20,7 +20,11 @@ use structopt::StructOpt;
 
 use crate::{
     constants::*,
-    datatype::{colors::IntColor, continuous::*, image::IMAGE_PRELOADER},
+    datatype::{
+        colors::{get_average, IntColor},
+        continuous::*,
+        image::IMAGE_PRELOADER,
+    },
     node::{color_nodes::IntColorNodes, Node},
     opts::Opts,
     updatestate::*,
@@ -42,11 +46,8 @@ fn main() {
 
     let opts = Opts::from_args();
     let (mut ctx, mut event_loop) = ContextBuilder::new("cellular3", "CodeBunny")
-        .window_mode(WindowMode {
-            width: INITIAL_WINDOW_WIDTH,
-            height: INITIAL_WINDOW_HEIGHT,
-            ..WindowMode::default()
-        })
+        .window_mode(WindowMode::default().dimensions(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT))
+        .window_setup(WindowSetup::default().vsync(VSYNC))
         .build()
         .expect("Could not create ggez context!");
 
@@ -128,9 +129,9 @@ struct MyGame {
     //rule_sets: [RuleSet; MAX_COLORS],
 
     //The rolling total used to calculate the average per update instead of per slice
-    //rolling_update_stat_total: UpdateStat,
+    rolling_update_stat_total: UpdateStat,
     //The average update stat over time, calculated by averaging rolling total and itself once an update
-    //average_update_stat: UpdateStat,
+    average_update_stat: UpdateStat,
     //The mechanism responsible for creating an initial state if all automata have died
     //reseeder: Reseeder,
     //The root node for the tree that computes the next screen state
@@ -181,15 +182,14 @@ impl MyGame {
             //     generate_random_rule_set(),
             //     generate_random_rule_set(),
             // ],
-
-            // rolling_update_stat_total: UpdateStat {
-            //     active_cells: 0,
-            //     similar_neighbours: 0,
-            // },
-            // average_update_stat: UpdateStat {
-            //     active_cells: 0,
-            //     similar_neighbours: 0,
-            // },
+            rolling_update_stat_total: UpdateStat {
+                activity_value: 0.0,
+                similarity_value: 0.0,
+            },
+            average_update_stat: UpdateStat {
+                activity_value: 0.0,
+                similarity_value: 0.0,
+            },
 
             // reseeder: Reseeder::Modulus {
             //     x_mod: 4,
@@ -309,8 +309,8 @@ struct UpdateStat {
     //-Neighbour similarity
     //--If all neighbours are similar, we have close to a flat color
     //--If all neighbours are distinct, we have visual noise
-    active_cells: i32,
-    similar_neighbours: i32,
+    activity_value: f32,
+    similarity_value: f32,
 }
 
 impl Add<UpdateStat> for UpdateStat {
@@ -318,19 +318,19 @@ impl Add<UpdateStat> for UpdateStat {
 
     fn add(self, other: UpdateStat) -> UpdateStat {
         UpdateStat {
-            active_cells: self.active_cells + other.active_cells,
-            similar_neighbours: self.similar_neighbours + other.similar_neighbours,
+            activity_value: self.activity_value + other.activity_value,
+            similarity_value: self.similarity_value + other.similarity_value,
         }
     }
 }
 
-impl Div<i32> for UpdateStat {
+impl Div<f32> for UpdateStat {
     type Output = UpdateStat;
 
-    fn div(self, other: i32) -> UpdateStat {
+    fn div(self, other: f32) -> UpdateStat {
         UpdateStat {
-            active_cells: self.active_cells / other,
-            similar_neighbours: self.similar_neighbours / other,
+            activity_value: self.activity_value / other,
+            similarity_value: self.similarity_value / other,
         }
     }
 }
@@ -372,6 +372,7 @@ impl EventHandler for MyGame {
         let root_node = &self.root_node;
 
         let update_step = |y, x, mut new: ArrayViewMut1<u8>| {
+            let total_cells = CELL_ARRAY_WIDTH * CELL_ARRAY_HEIGHT;
             // let neighbour_result =
             //     get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
 
@@ -394,18 +395,16 @@ impl EventHandler for MyGame {
 
             UpdateStat {
                 //Two checks are necessary to avoid two tic oscillators being counted as active cells
-                active_cells: if new_color != older_color && new_color != current_color {
-                    1
-                } else {
-                    0
-                },
-                similar_neighbours: 0, //neighbour_result.1,
+                activity_value: ((get_average(older_color.into()) - get_average(new_color.into()))
+                    / total_cells as f32)
+                    .abs(),
+                similarity_value: 0.0, //neighbour_result.1,
             }
         };
 
         let zip = ndarray::Zip::indexed(new_update_iter);
 
-        let _slice_update_stat: UpdateStat = if PARALLELIZE {
+        let slice_update_stat: UpdateStat = if PARALLELIZE {
             zip.into_par_iter()
                 .map(|((y, x), new)| update_step(y, x, new))
                 .sum()
@@ -415,18 +414,15 @@ impl EventHandler for MyGame {
             stat
         };
 
-        //self.rolling_update_stat_total += slice_update_stat;
-
-        let _total_cells = CELL_ARRAY_WIDTH * CELL_ARRAY_HEIGHT;
+        self.rolling_update_stat_total += slice_update_stat;
 
         if timer::ticks(ctx) % TICS_PER_UPDATE == 0 {
-            //self.average_update_stat =
-            //    (self.average_update_stat + self.rolling_update_stat_total) / 2;
+            self.average_update_stat =
+                (self.average_update_stat + self.rolling_update_stat_total) / 2.0;
 
             // let sqrt_stagnant_cells =
             //     ((total_cells - slice_update_stat.active_cells) as f32).sqrt() as i32;
 
-            // let activity_value = self.average_update_stat.active_cells as f32 / total_cells as f32;
             // let similarity_value = self.average_update_stat.similar_neighbours as f32
             //     / (total_cells * MAX_NEIGHBOUR_COUNT) as f32;
 
@@ -461,12 +457,17 @@ impl EventHandler for MyGame {
             //     }
             // }
 
-            // self.rolling_update_stat_total = UpdateStat {
-            //     active_cells: 0,
-            //     similar_neighbours: 0,
-            // };
+            self.rolling_update_stat_total = UpdateStat {
+                activity_value: 0.0,
+                similarity_value: 0.0,
+            };
 
-            if self.tree_dirty || self.rng.gen_bool(0.01) {
+            if self.tree_dirty
+                || self
+                    .rng
+                    .gen_range(0.0, dbg!(self.average_update_stat.activity_value) as f64)
+                    < 0.01
+            {
                 info!("====TIC: {} MUTATING TREE====", self.current_t);
                 self.root_node
                     .mutate_rng(&mut self.rng, mutagen::State::default());

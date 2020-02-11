@@ -1,3 +1,4 @@
+pub mod color_blend_nodes;
 pub mod color_nodes;
 pub mod continuous_nodes;
 pub mod coord_map_nodes;

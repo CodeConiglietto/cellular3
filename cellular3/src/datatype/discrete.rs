@@ -63,7 +63,7 @@ impl Byte {
         if other.value.0 == 0 {
             Self::new(other.value.0)
         } else {
-            Self::new((self.value / other.value).0)
+            Self::new((self.value % other.value).0)
         }
     }
 }
@@ -116,7 +116,7 @@ impl UInt {
         if other.value.0 == 0 {
             Self::new(other.value.0)
         } else {
-            Self::new((self.value / other.value).0)
+            Self::new((self.value % other.value).0)
         }
     }
 }
@@ -169,7 +169,7 @@ impl SInt {
         if other.value.0 == 0 {
             Self::new(other.value.0)
         } else {
-            Self::new((self.value / other.value).0)
+            Self::new((self.value % other.value).0)
         }
     }
 }
