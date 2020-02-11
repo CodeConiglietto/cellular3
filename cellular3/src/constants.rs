@@ -1,4 +1,4 @@
-pub const TICS_PER_UPDATE: i32 = 6;
+pub const TICS_PER_UPDATE: i32 = 5;
 
 pub const INITIAL_WINDOW_WIDTH: f32 = 1600.0;
 pub const INITIAL_WINDOW_HEIGHT: f32 = 900.0;

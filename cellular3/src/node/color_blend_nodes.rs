@@ -1,7 +1,7 @@
 use crate::{
     datatype::{colors::*, continuous::*},
     node::{
-        continuous_nodes::*, color_nodes::*, mutagen_functions::*, Node,
+        continuous_nodes::*, coord_map_nodes::*, color_nodes::*, discrete_nodes::*, mutagen_functions::*, Node,
     },
     updatestate::UpdateState,
 };
@@ -108,6 +108,18 @@ pub enum ColorBlendNodes {
     //     color_b: Box<FloatColorNodes>,
     //     value: Box<UNFloatNodes>,
     // },
+
+    #[mutagen(gen_weight = branch_node_weight)]
+    ModifyState {
+        child: Box<ColorBlendNodes>,
+        child_state: Box<CoordMapNodes>,
+    },
+    #[mutagen(gen_weight = branch_node_weight)]
+    IfElse {
+        predicate: Box<BooleanNodes>,
+        child_a: Box<Self>,
+        child_b: Box<Self>,
+    },
 }
 
 impl Node for ColorBlendNodes {
@@ -143,6 +155,12 @@ impl Node for ColorBlendNodes {
             // Subtract {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
             // Divide {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
             // Lerp {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
+            ModifyState { child, child_state } => child.compute(UpdateState {
+                coordinate_set: child_state.compute(state),
+                cell_array: state.cell_array,
+            }),
+            IfElse { predicate, child_a, child_b } => if predicate.compute(state).into_inner() { child_a.compute(state) } else { child_b.compute(state) }
+
         }
     }
 }
