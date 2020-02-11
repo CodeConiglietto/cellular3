@@ -1,6 +1,6 @@
 use crate::{
-    datatype::{continuous::*},
-    node::{color_nodes::*, noise_nodes::*, coord_map_nodes::*, mutagen_functions::*, Node},
+    datatype::continuous::*,
+    node::{color_nodes::*, coord_map_nodes::*, mutagen_functions::*, noise_nodes::*, Node},
     updatestate::*,
 };
 use mutagen::{Generatable, Mutatable};
@@ -49,7 +49,7 @@ impl Node for AngleNodes {
             FromUNFloat { child } => child.compute(state).to_angle(),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
         }
     }
@@ -122,7 +122,7 @@ impl Node for SNFloatNodes {
             YRatio => state.coordinate_set.y,
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
             NoiseFunction { child } => child.compute(state),
         }
@@ -135,25 +135,15 @@ pub enum UNFloatNodes {
     #[mutagen(gen_weight = leaf_node_weight)]
     Random,
     #[mutagen(gen_weight = leaf_node_weight)]
-    Constant {
-        value: UNFloat,
-    },
+    Constant { value: UNFloat },
     #[mutagen(gen_weight = pipe_node_weight)]
-    FromAngle {
-        child: Box<AngleNodes>,
-    },
+    FromAngle { child: Box<AngleNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    FromSNFloat {
-        child: Box<SNFloatNodes>,
-    },
+    FromSNFloat { child: Box<SNFloatNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    AbsSNFloat {
-        child: Box<SNFloatNodes>,
-    },
+    AbsSNFloat { child: Box<SNFloatNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    SquareSNFloat {
-        child: Box<SNFloatNodes>,
-    },
+    SquareSNFloat { child: Box<SNFloatNodes> },
     #[mutagen(gen_weight = branch_node_weight)]
     Multiply {
         child_a: Box<UNFloatNodes>,
@@ -165,25 +155,15 @@ pub enum UNFloatNodes {
         child_b: Box<UNFloatNodes>,
     },
     #[mutagen(gen_weight = pipe_node_weight)]
-    InvertNormalised {
-        child: Box<UNFloatNodes>,
-    },
+    InvertNormalised { child: Box<UNFloatNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    ColorAverage {
-        child: Box<FloatColorNodes>,
-    },
+    ColorAverage { child: Box<FloatColorNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    ColorComponentR {
-        child: Box<FloatColorNodes>,
-    },
+    ColorComponentR { child: Box<FloatColorNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    ColorComponentG {
-        child: Box<FloatColorNodes>,
-    },
+    ColorComponentG { child: Box<FloatColorNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
-    ColorComponentB {
-        child: Box<FloatColorNodes>,
-    },
+    ColorComponentB { child: Box<FloatColorNodes> },
     #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<UNFloatNodes>,
@@ -222,7 +202,7 @@ impl Node for UNFloatNodes {
             ColorComponentB { child } => UNFloat::new(child.compute(state).b),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
         }
     }

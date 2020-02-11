@@ -20,6 +20,7 @@ impl Generatable for IntColor {
         }
     }
 }
+
 impl Mutatable for IntColor {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, state: mutagen::State) {
         *self = Self::generate_rng(rng, state);
@@ -238,6 +239,7 @@ impl Generatable for PalletteColor {
         Self::from_components([rng.gen(), rng.gen(), rng.gen()])
     }
 }
+
 impl Mutatable for PalletteColor {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, _state: mutagen::State) {
         let current_color = self.to_components();

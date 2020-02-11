@@ -1,6 +1,7 @@
 use crate::{
     constants::*,
     datatype::{colors::FloatColor, continuous::*, discrete::*},
+    History,
 };
 use ndarray::prelude::*;
 
@@ -9,7 +10,7 @@ pub struct UpdateState<'a> {
     //the set of coordinates for the update
     pub coordinate_set: CoordinateSet,
     //cell array to read from
-    pub cell_array: ArrayView2<'a, FloatColor>,
+    pub history: &'a History,
 }
 
 #[derive(Clone, Copy, Debug)]

@@ -1,10 +1,11 @@
-pub const TICS_PER_UPDATE: i32 = 5;
+pub const TICS_PER_UPDATE: usize = 5;
 
 pub const INITIAL_WINDOW_WIDTH: f32 = 1600.0;
 pub const INITIAL_WINDOW_HEIGHT: f32 = 900.0;
 
 pub const CELL_ARRAY_WIDTH: usize = 400;
 pub const CELL_ARRAY_HEIGHT: usize = 225;
+pub const CELL_ARRAY_HISTORY_LENGTH: usize = 4;
 
 pub const NOISE_X_SCALE_FACTOR: f64 = 4.0;
 pub const NOISE_Y_SCALE_FACTOR: f64 = 4.0;
@@ -27,7 +28,7 @@ pub const _MAX_NEIGHBOUR_COUNT: i32 = 8; //Use this for total neighbours excludi
 //color consts
 pub const MAX_COLORS: usize = 8;
 
-pub const PARALLELIZE: bool = true;
+pub const PARALLELIZE: bool = false;
 
 pub const MIN_LEAF_DEPTH: usize = 1;
 pub const MAX_LEAF_DEPTH: usize = 1000;

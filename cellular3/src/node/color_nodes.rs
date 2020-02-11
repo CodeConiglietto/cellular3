@@ -3,7 +3,9 @@ use palette::{encoding::srgb::Srgb, rgb::Rgb, Hsv, RgbHue};
 use crate::{
     constants::*,
     datatype::{colors::*, image::*},
-    node::{coord_map_nodes::*, discrete_nodes::*, mutagen_functions::*, continuous_nodes::*, Node},
+    node::{
+        continuous_nodes::*, coord_map_nodes::*, discrete_nodes::*, mutagen_functions::*, Node,
+    },
     updatestate::UpdateState,
 };
 use mutagen::{Generatable, Mutatable};
@@ -28,9 +30,6 @@ pub enum FloatColorNodes {
         s: Box<UNFloatNodes>,
         v: Box<UNFloatNodes>,
     },
-
-    #[mutagen(gen_weight = leaf_node_weight)]
-    FromCellArray,
 
     #[mutagen(gen_weight = pipe_node_weight)]
     FromPalletteColor { child: Box<PalletteColorNodes> },
@@ -89,20 +88,10 @@ impl Node for FloatColorNodes {
 
                 float_color_from_pallette_rgb(rgb)
             }
-            FromCellArray => {
-                let (x, y) = wrap_point_to_cell_array(
-                    state.cell_array.view(),
-                    ((state.coordinate_set.x.into_inner() + 1.0) * 0.5 * CELL_ARRAY_WIDTH as f32)
-                        as usize,
-                    ((state.coordinate_set.y.into_inner() + 1.0) * 0.5 * CELL_ARRAY_HEIGHT as f32)
-                        as usize,
-                );
-                state.cell_array[[x as usize, y as usize]]
-            }
             FromPalletteColor { child } => FloatColor::from(child.compute(state)),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
             FromIntColor { child } => FloatColor::from(child.compute(state)),
         }
@@ -189,7 +178,7 @@ impl Node for PalletteColorNodes {
             FromFloatColor { child } => PalletteColor::from_float_color(child.compute(state)),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
         }
     }
@@ -205,13 +194,20 @@ pub enum IntColorNodes {
     FromImage { image: Image },
 
     #[mutagen(gen_weight = branch_node_weight)]
-    Decompose { r: Box<ByteNodes>, g: Box<ByteNodes>, b: Box<ByteNodes> },
+    Decompose {
+        r: Box<ByteNodes>,
+        g: Box<ByteNodes>,
+        b: Box<ByteNodes>,
+    },
 
     #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<IntColorNodes>,
         child_state: Box<CoordMapNodes>,
     },
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    FromCellArray,
 }
 
 impl Node for IntColorNodes {
@@ -227,11 +223,22 @@ impl Node for IntColorNodes {
                 state.coordinate_set.y,
                 state.coordinate_set.t,
             ),
-            Decompose { r, g, b } => IntColor { r: r.compute(state).into_inner(), g: g.compute(state).into_inner(), b: b.compute(state).into_inner() },
+            Decompose { r, g, b } => IntColor {
+                r: r.compute(state).into_inner(),
+                g: g.compute(state).into_inner(),
+                b: b.compute(state).into_inner(),
+            },
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
+            FromCellArray => state.history.get(
+                ((state.coordinate_set.x.into_inner() + 1.0) * 0.5 * CELL_ARRAY_WIDTH as f32)
+                    as usize,
+                ((state.coordinate_set.y.into_inner() + 1.0) * 0.5 * CELL_ARRAY_HEIGHT as f32)
+                    as usize,
+                state.coordinate_set.t as usize,
+            ),
         }
     }
 }

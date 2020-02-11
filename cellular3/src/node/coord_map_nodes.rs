@@ -1,6 +1,6 @@
 use crate::{
     datatype::continuous::*,
-    node::{mutagen_functions::*, continuous_nodes::*, Node},
+    node::{continuous_nodes::*, mutagen_functions::*, Node},
     updatestate::{CoordinateSet, UpdateState},
 };
 use mutagen::{Generatable, Mutatable};

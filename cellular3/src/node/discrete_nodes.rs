@@ -1,6 +1,6 @@
 use crate::{
-    datatype::{discrete::*, },
-    node::{coord_map_nodes::*, mutagen_functions::*, continuous_nodes::*, Node},
+    datatype::discrete::*,
+    node::{continuous_nodes::*, coord_map_nodes::*, mutagen_functions::*, Node},
     updatestate::*,
 };
 use mutagen::{Generatable, Mutatable};
@@ -28,13 +28,9 @@ pub enum BooleanNodes {
         child_b: Box<BooleanNodes>,
     },
     #[mutagen(gen_weight = pipe_node_weight)]
-    Not {
-        child: Box<BooleanNodes>,
-    },
+    Not { child: Box<BooleanNodes> },
     #[mutagen(gen_weight = leaf_node_weight)]
-    Constant {
-        child: Boolean,
-    },
+    Constant { child: Boolean },
     #[mutagen(mut_reroll = 0.9)]
     #[mutagen(gen_weight = leaf_node_weight)]
     Random,
@@ -71,7 +67,7 @@ impl Node for BooleanNodes {
             Random => Boolean::generate(),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
-                cell_array: state.cell_array,
+                ..state
             }),
         }
     }
@@ -84,13 +80,25 @@ pub enum ByteNodes {
     #[mutagen(gen_weight = leaf_node_weight)]
     Random,
     #[mutagen(gen_weight = branch_node_weight)]
-    Add { child_a: Box<ByteNodes>, child_b: Box<ByteNodes> },
+    Add {
+        child_a: Box<ByteNodes>,
+        child_b: Box<ByteNodes>,
+    },
     #[mutagen(gen_weight = branch_node_weight)]
-    Multiply { child_a: Box<ByteNodes>, child_b: Box<ByteNodes> },
+    Multiply {
+        child_a: Box<ByteNodes>,
+        child_b: Box<ByteNodes>,
+    },
     #[mutagen(gen_weight = branch_node_weight)]
-    Divide { child_value: Box<ByteNodes>, child_divisor: Box<ByteNodes> },
+    Divide {
+        child_value: Box<ByteNodes>,
+        child_divisor: Box<ByteNodes>,
+    },
     #[mutagen(gen_weight = branch_node_weight)]
-    Modulus { child_value: Box<ByteNodes>, child_divisor: Box<ByteNodes> },
+    Modulus {
+        child_value: Box<ByteNodes>,
+        child_divisor: Box<ByteNodes>,
+    },
     #[mutagen(gen_weight = leaf_node_weight)]
     FromGametic,
     // InvertNormalised { child: Box<ByteNodes> },
@@ -103,12 +111,24 @@ impl Node for ByteNodes {
         use ByteNodes::*;
 
         match self {
-            Constant { value } => { *value },
+            Constant { value } => *value,
             Random => Byte::generate(),
-            Add { child_a, child_b } => {child_a.compute(state).add(child_b.compute(state))},
-            Multiply { child_a, child_b } => {child_a.compute(state).multiply(child_b.compute(state))},
-            Divide { child_value, child_divisor } => {child_value.compute(state).divide(child_divisor.compute(state))},
-            Modulus { child_value, child_divisor } => {child_value.compute(state).modulus(child_divisor.compute(state))},
+            Add { child_a, child_b } => child_a.compute(state).add(child_b.compute(state)),
+            Multiply { child_a, child_b } => {
+                child_a.compute(state).multiply(child_b.compute(state))
+            }
+            Divide {
+                child_value,
+                child_divisor,
+            } => child_value
+                .compute(state)
+                .divide(child_divisor.compute(state)),
+            Modulus {
+                child_value,
+                child_divisor,
+            } => child_value
+                .compute(state)
+                .modulus(child_divisor.compute(state)),
             FromGametic => state.coordinate_set.get_byte_t(),
         }
     }
@@ -121,13 +141,25 @@ pub enum UIntNodes {
     #[mutagen(gen_weight = leaf_node_weight)]
     Random,
     #[mutagen(gen_weight = branch_node_weight)]
-    Add { child_a: Box<UIntNodes>, child_b: Box<UIntNodes> },
+    Add {
+        child_a: Box<UIntNodes>,
+        child_b: Box<UIntNodes>,
+    },
     #[mutagen(gen_weight = branch_node_weight)]
-    Multiply { child_a: Box<UIntNodes>, child_b: Box<UIntNodes> },
+    Multiply {
+        child_a: Box<UIntNodes>,
+        child_b: Box<UIntNodes>,
+    },
     #[mutagen(gen_weight = branch_node_weight)]
-    Divide { child_value: Box<UIntNodes>, child_divisor: Box<UIntNodes> },
+    Divide {
+        child_value: Box<UIntNodes>,
+        child_divisor: Box<UIntNodes>,
+    },
     #[mutagen(gen_weight = branch_node_weight)]
-    Modulus { child_value: Box<UIntNodes>, child_divisor: Box<UIntNodes> },
+    Modulus {
+        child_value: Box<UIntNodes>,
+        child_divisor: Box<UIntNodes>,
+    },
     #[mutagen(gen_weight = leaf_node_weight)]
     FromGametic,
 }
@@ -139,12 +171,24 @@ impl Node for UIntNodes {
         use UIntNodes::*;
 
         match self {
-            Constant { value } => { *value },
+            Constant { value } => *value,
             Random => UInt::generate(),
-            Add { child_a, child_b } => {child_a.compute(state).add(child_b.compute(state))},
-            Multiply { child_a, child_b } => {child_a.compute(state).multiply(child_b.compute(state))},
-            Divide { child_value, child_divisor } => {child_value.compute(state).divide(child_divisor.compute(state))},
-            Modulus { child_value, child_divisor } => {child_value.compute(state).modulus(child_divisor.compute(state))},
+            Add { child_a, child_b } => child_a.compute(state).add(child_b.compute(state)),
+            Multiply { child_a, child_b } => {
+                child_a.compute(state).multiply(child_b.compute(state))
+            }
+            Divide {
+                child_value,
+                child_divisor,
+            } => child_value
+                .compute(state)
+                .divide(child_divisor.compute(state)),
+            Modulus {
+                child_value,
+                child_divisor,
+            } => child_value
+                .compute(state)
+                .modulus(child_divisor.compute(state)),
             FromGametic => UInt::new(state.coordinate_set.t as u32),
         }
     }
@@ -157,13 +201,25 @@ pub enum SIntNodes {
     #[mutagen(gen_weight = leaf_node_weight)]
     Random,
     #[mutagen(gen_weight = branch_node_weight)]
-    Add { child_a: Box<SIntNodes>, child_b: Box<SIntNodes> },
+    Add {
+        child_a: Box<SIntNodes>,
+        child_b: Box<SIntNodes>,
+    },
     #[mutagen(gen_weight = branch_node_weight)]
-    Multiply { child_a: Box<SIntNodes>, child_b: Box<SIntNodes> },
+    Multiply {
+        child_a: Box<SIntNodes>,
+        child_b: Box<SIntNodes>,
+    },
     #[mutagen(gen_weight = branch_node_weight)]
-    Divide { child_value: Box<SIntNodes>, child_divisor: Box<SIntNodes> },
+    Divide {
+        child_value: Box<SIntNodes>,
+        child_divisor: Box<SIntNodes>,
+    },
     #[mutagen(gen_weight = branch_node_weight)]
-    Modulus { child_value: Box<SIntNodes>, child_divisor: Box<SIntNodes> },
+    Modulus {
+        child_value: Box<SIntNodes>,
+        child_divisor: Box<SIntNodes>,
+    },
 }
 
 impl Node for SIntNodes {
@@ -172,13 +228,25 @@ impl Node for SIntNodes {
     fn compute(&self, state: UpdateState) -> Self::Output {
         use SIntNodes::*;
 
-        match self{
-            Constant { value } => { *value },
+        match self {
+            Constant { value } => *value,
             Random => SInt::generate(),
-            Add { child_a, child_b } => {child_a.compute(state).add(child_b.compute(state))},
-            Multiply { child_a, child_b } => {child_a.compute(state).multiply(child_b.compute(state))},
-            Divide { child_value, child_divisor } => {child_value.compute(state).divide(child_divisor.compute(state))},
-            Modulus { child_value, child_divisor } => {child_value.compute(state).modulus(child_divisor.compute(state))},
+            Add { child_a, child_b } => child_a.compute(state).add(child_b.compute(state)),
+            Multiply { child_a, child_b } => {
+                child_a.compute(state).multiply(child_b.compute(state))
+            }
+            Divide {
+                child_value,
+                child_divisor,
+            } => child_value
+                .compute(state)
+                .divide(child_divisor.compute(state)),
+            Modulus {
+                child_value,
+                child_divisor,
+            } => child_value
+                .compute(state)
+                .modulus(child_divisor.compute(state)),
         }
     }
 }
