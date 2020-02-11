@@ -40,10 +40,10 @@ impl CoordinateSet {
     }
 
     pub fn get_byte_t(&self) -> Byte {
-        Byte::new((self.t as u64 % BYTE_POSSIBLE_VALUES as u64) as u8)
+        Byte::new((self.t as u64 % CONSTS.byte_possible_values as u64) as u8)
     }
 
     pub fn get_unfloat_t(&self) -> UNFloat {
-        UNFloat::new(self.get_byte_t().into_inner() as f32 / BYTE_POSSIBLE_VALUES as f32)
+        UNFloat::new(self.get_byte_t().into_inner() as f32 / CONSTS.byte_possible_values as f32)
     }
 }

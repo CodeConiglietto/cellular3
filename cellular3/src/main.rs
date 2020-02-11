@@ -46,8 +46,11 @@ fn main() {
 
     let opts = Opts::from_args();
     let (mut ctx, mut event_loop) = ContextBuilder::new("cellular3", "CodeBunny")
-        .window_mode(WindowMode::default().dimensions(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT))
-        .window_setup(WindowSetup::default().vsync(VSYNC))
+        .window_mode(
+            WindowMode::default()
+                .dimensions(CONSTS.initial_window_width, CONSTS.initial_window_height),
+        )
+        .window_setup(WindowSetup::default().vsync(CONSTS.vsync))
         .build()
         .expect("Could not create ggez context!");
 
@@ -162,11 +165,11 @@ impl MyGame {
         MyGame {
             bounds: Rect::new(0.0, 0.0, pixels_x, pixels_y),
 
-            next_cell_array: init_cell_array(CELL_ARRAY_WIDTH, CELL_ARRAY_HEIGHT),
+            next_cell_array: init_cell_array(CONSTS.cell_array_width, CONSTS.cell_array_height),
             history: History::new(
-                CELL_ARRAY_WIDTH,
-                CELL_ARRAY_HEIGHT,
-                CELL_ARRAY_HISTORY_LENGTH,
+                CONSTS.cell_array_width,
+                CONSTS.cell_array_height,
+                CONSTS.cell_array_history_length,
             ),
 
             old_texture: dummy_texture.clone(),
@@ -194,8 +197,8 @@ impl MyGame {
             // reseeder: Reseeder::Modulus {
             //     x_mod: 4,
             //     y_mod: 4,
-            //     x_offset: random::<usize>() % CELL_ARRAY_WIDTH,
-            //     y_offset: random::<usize>() % CELL_ARRAY_HEIGHT,
+            //     x_offset: random::<usize>() % CONSTS.cell_array_width,
+            //     y_offset: random::<usize>() % CONSTS.cell_array_height,
             //     color_table: Array2::from_shape_fn((2, 2), |_| get_random_color()),
             // },
             root_node: Box::new(
@@ -358,8 +361,8 @@ impl EventHandler for MyGame {
 
         let current_t = self.current_t;
 
-        let slice_height = CELL_ARRAY_HEIGHT / TICS_PER_UPDATE;
-        let slice_y = (timer::ticks(ctx) % TICS_PER_UPDATE) * slice_height;
+        let slice_height = CONSTS.cell_array_height / CONSTS.tics_per_update;
+        let slice_y = (timer::ticks(ctx) % CONSTS.tics_per_update) * slice_height;
         let slice_y_range = slice_y..slice_y + slice_height;
 
         let mut new_update_slice = self.next_cell_array.slice_mut(s![slice_y_range, .., ..]);
@@ -372,15 +375,17 @@ impl EventHandler for MyGame {
         let root_node = &self.root_node;
 
         let update_step = |y, x, mut new: ArrayViewMut1<u8>| {
-            let total_cells = CELL_ARRAY_WIDTH * CELL_ARRAY_HEIGHT;
+            let total_cells = CONSTS.cell_array_width * CONSTS.cell_array_height;
             // let neighbour_result =
             //     get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
 
             let new_color = root_node.compute(UpdateState {
                 coordinate_set: CoordinateSet {
-                    x: UNFloat::new(x as f32 / CELL_ARRAY_WIDTH as f32).to_signed(),
-                    y: UNFloat::new((y + slice_y as usize) as f32 / CELL_ARRAY_HEIGHT as f32)
-                        .to_signed(),
+                    x: UNFloat::new(x as f32 / CONSTS.cell_array_width as f32).to_signed(),
+                    y: UNFloat::new(
+                        (y + slice_y as usize) as f32 / CONSTS.cell_array_height as f32,
+                    )
+                    .to_signed(),
                     t: current_t as f32,
                 },
                 history,
@@ -404,7 +409,7 @@ impl EventHandler for MyGame {
 
         let zip = ndarray::Zip::indexed(new_update_iter);
 
-        let slice_update_stat: UpdateStat = if PARALLELIZE {
+        let slice_update_stat: UpdateStat = if CONSTS.parallelize {
             zip.into_par_iter()
                 .map(|((y, x), new)| update_step(y, x, new))
                 .sum()
@@ -416,7 +421,7 @@ impl EventHandler for MyGame {
 
         self.rolling_update_stat_total += slice_update_stat;
 
-        if timer::ticks(ctx) % TICS_PER_UPDATE == 0 {
+        if timer::ticks(ctx) % CONSTS.tics_per_update == 0 {
             self.average_update_stat =
                 (self.average_update_stat + self.rolling_update_stat_total) / 2.0;
 
@@ -497,11 +502,12 @@ impl EventHandler for MyGame {
         graphics::clear(ctx, graphics::WHITE);
 
         let base_params = DrawParam::new().dest([0.0, 0.0]).scale([
-            self.bounds.w as f32 / CELL_ARRAY_WIDTH as f32,
-            self.bounds.h as f32 / CELL_ARRAY_HEIGHT as f32,
+            self.bounds.w as f32 / CONSTS.cell_array_width as f32,
+            self.bounds.h as f32 / CONSTS.cell_array_height as f32,
         ]);
 
-        let lerp_value = (timer::ticks(ctx) % TICS_PER_UPDATE) as f32 / TICS_PER_UPDATE as f32;
+        let lerp_value =
+            (timer::ticks(ctx) % CONSTS.tics_per_update) as f32 / CONSTS.tics_per_update as f32;
 
         ggez::graphics::draw(ctx, &self.old_texture, base_params)?;
         ggez::graphics::draw(
