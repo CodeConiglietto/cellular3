@@ -6,6 +6,10 @@ use crate::datatype::continuous::*;
 
 pub type FloatColor = ggez::graphics::Color;
 
+pub fn get_average(c: FloatColor) -> f32 {
+    (c.r + c.b + c.g) / 3.0
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct IntColor {
     pub r: u8,

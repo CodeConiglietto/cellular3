@@ -17,9 +17,9 @@ pub enum AngleNodes {
     #[mutagen(gen_weight = pipe_node_weight)]
     ArcCos { theta: Box<SNFloatNodes> },
 
-    #[mutagen(gen_weight = leaf_node_weight)]
-    #[mutagen(mut_reroll = 0.9)]
-    Random,
+    // #[mutagen(gen_weight = leaf_node_weight)]
+    // #[mutagen(mut_reroll = 0.9)]
+    // Random,
 
     #[mutagen(gen_weight = leaf_node_weight)]
     Constant { value: Angle },
@@ -52,7 +52,7 @@ impl Node for AngleNodes {
         match self {
             ArcSin { theta } => Angle::new(f32::asin(theta.compute(state).into_inner())),
             ArcCos { theta } => Angle::new(f32::acos(theta.compute(state).into_inner())),
-            Random => Angle::generate(),
+            // Random => Angle::generate(),
             Constant { value } => *value,
             FromSNFloat { child } => child.compute(state).to_angle(),
             FromUNFloat { child } => child.compute(state).to_angle(),
@@ -84,8 +84,8 @@ pub enum SNFloatNodes {
     #[mutagen(gen_weight = pipe_node_weight)]
     Cos { child: Box<AngleNodes> },
 
-    #[mutagen(gen_weight = leaf_node_weight)]
-    Random,
+    // #[mutagen(gen_weight = leaf_node_weight)]
+    // Random,
 
     #[mutagen(gen_weight = leaf_node_weight)]
     Constant { value: SNFloat },
@@ -136,7 +136,7 @@ impl Node for SNFloatNodes {
         match self {
             Sin { child } => SNFloat::new(f32::sin(child.compute(state).into_inner())),
             Cos { child } => SNFloat::new(f32::cos(child.compute(state).into_inner())),
-            Random => SNFloat::generate(),
+            // Random => SNFloat::generate(),
             FromAngle { child } => child.compute(state).to_signed(),
             FromUNFloat { child } => child.compute(state).to_signed(),
             Constant { value } => *value,
@@ -169,8 +169,8 @@ impl Node for SNFloatNodes {
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
 pub enum UNFloatNodes {
-    #[mutagen(gen_weight = leaf_node_weight)]
-    Random,
+    // #[mutagen(gen_weight = leaf_node_weight)]
+    // Random,
     #[mutagen(gen_weight = leaf_node_weight)]
     Constant { value: UNFloat },
     #[mutagen(gen_weight = pipe_node_weight)]
@@ -203,6 +203,8 @@ pub enum UNFloatNodes {
     ColorComponentB { child: Box<FloatColorNodes> },
     #[mutagen(gen_weight = pipe_node_weight)]
     ColorComponentH { child: Box<FloatColorNodes> },
+    #[mutagen(gen_weight = leaf_node_weight)]
+    FromGametic,
     #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<UNFloatNodes>,
@@ -223,7 +225,7 @@ impl Node for UNFloatNodes {
         use UNFloatNodes::*;
 
         match self {
-            Random => UNFloat::generate(),
+            // Random => UNFloat::generate(),
             Constant { value } => *value,
             FromAngle { child } => child.compute(state).to_unsigned(),
             FromSNFloat { child } => child.compute(state).to_unsigned(),
@@ -246,6 +248,7 @@ impl Node for UNFloatNodes {
             ColorComponentG { child } => UNFloat::new(child.compute(state).g),
             ColorComponentB { child } => UNFloat::new(child.compute(state).b),
             ColorComponentH { child } => get_hue_unfloat(child.compute(state)),
+            FromGametic => state.coordinate_set.get_unfloat_t(),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
                 cell_array: state.cell_array,

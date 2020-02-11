@@ -4,7 +4,12 @@ use crate::{
     constants::*,
     datatype::{colors::*, image::*},
     node::{
-        continuous_nodes::*, coord_map_nodes::*, discrete_nodes::*, mutagen_functions::*, Node,
+        color_blend_nodes::*,
+        continuous_nodes::*, 
+        coord_map_nodes::*, 
+        discrete_nodes::*, 
+        mutagen_functions::*, 
+        Node,
     },
     updatestate::UpdateState,
 };
@@ -30,6 +35,9 @@ pub enum FloatColorNodes {
         s: Box<UNFloatNodes>,
         v: Box<UNFloatNodes>,
     },
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    FromBlend { child: Box<ColorBlendNodes> },
 
     #[mutagen(gen_weight = leaf_node_weight)]
     FromCellArray,
@@ -97,6 +105,7 @@ impl Node for FloatColorNodes {
 
                 float_color_from_pallette_rgb(rgb)
             },
+            FromBlend { child } => child.compute(state),
             FromCellArray => {
                 let (x, y) = wrap_point_to_cell_array(
                     state.cell_array.view(),
