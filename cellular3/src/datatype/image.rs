@@ -6,11 +6,13 @@ use std::{
     sync::Arc,
 };
 
+use failure::{format_err, Fallible};
 use image::{gif, imageops, AnimationDecoder, DynamicImage, FilterType, ImageFormat, RgbImage};
 use lazy_static::lazy_static;
-use log::{debug, error};
+use log::{debug, error, warn};
 use mutagen::{Generatable, Mutatable};
 use rand::prelude::*;
+use reqwest::blocking::Client as HttpClient;
 
 use crate::{
     constants::*,
@@ -43,12 +45,14 @@ const FALLBACK_IMAGE_DATA: &[u8] =
 
 struct RandomImageLoader {
     rng: DeterministicRng,
+    http: HttpClient,
 }
 
 impl RandomImageLoader {
     fn new() -> Self {
         Self {
             rng: DeterministicRng::new(),
+            http: HttpClient::new(),
         }
     }
 }
@@ -57,20 +61,59 @@ impl Generator for RandomImageLoader {
     type Output = Image;
 
     fn generate(&mut self) -> Self::Output {
-        if let Some(filename) = ALL_IMAGES.choose(&mut self.rng) {
-            debug!("Loading image file '{}'", filename.to_string_lossy());
-            Image::load_file(&filename).unwrap_or_else(|e| {
-                error!(
-                    "Failed to load image file '{}': {}",
-                    filename.to_string_lossy(),
-                    e
-                );
-                FALLBACK_IMAGE.clone()
+        if self.rng.gen_bool(0.5) {
+            download_random_image(&mut self.http).unwrap_or_else(|e| {
+                warn!("Failed to download image: {}", e);
+                load_random_image_file(&mut self.rng)
             })
         } else {
-            debug!("No images found, loading fallback image");
-            FALLBACK_IMAGE.clone()
+            load_random_image_file(&mut self.rng)
         }
+    }
+}
+
+fn download_random_image(client: &mut HttpClient) -> Fallible<Image> {
+    let mut buf = Vec::new();
+
+    let mut response = client
+        .get(&format!(
+            "https://picsum.photos/{}/{}",
+            CONSTS.cell_array_width, CONSTS.cell_array_height,
+        ))
+        .send()?
+        .error_for_status()?;
+
+    response.copy_to(&mut buf)?;
+
+    let url = response.url();
+    let filename = url
+        .path_segments()
+        .ok_or_else(|| format_err!("Couldn't parse url: {}", url.as_str()))?
+        .last()
+        .ok_or_else(|| format_err!("Empty url: {}", url.as_str()))?;
+
+    let name = format!("{} (Lorem Picsum)", &filename);
+    let format = ImageFormat::from_path(&filename)?;
+
+    debug!("Downloaded image: {}", name);
+
+    Ok(Image::load(name, Cursor::new(&buf), format)?)
+}
+
+fn load_random_image_file<R: Rng + ?Sized>(rng: &mut R) -> Image {
+    if let Some(filename) = ALL_IMAGES.choose(rng) {
+        debug!("Loading image file '{}'", filename.to_string_lossy());
+        Image::load_file(&filename).unwrap_or_else(|e| {
+            error!(
+                "Failed to load image file '{}': {}",
+                filename.to_string_lossy(),
+                e
+            );
+            FALLBACK_IMAGE.clone()
+        })
+    } else {
+        debug!("No images found, loading fallback image");
+        FALLBACK_IMAGE.clone()
     }
 }
 
@@ -89,7 +132,7 @@ impl Image {
 
     pub fn load_file<P: AsRef<Path>>(path: P) -> image::ImageResult<Self> {
         Ok(Self::new(
-            path.as_ref().to_string_lossy().into_owned(),
+            format!("{} (Local file)", path.as_ref().to_string_lossy()),
             load_frames(
                 BufReader::new(File::open(&path)?),
                 ImageFormat::from_path(&path)?,

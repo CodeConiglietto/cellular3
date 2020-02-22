@@ -11,7 +11,6 @@ use ggez::{
     input::keyboard,
     timer, Context, ContextBuilder, GameResult,
 };
-use itertools::Itertools;
 use log::{error, info};
 use mutagen::{Generatable, Mutatable};
 use ndarray::{s, Array3, ArrayView1, ArrayView3, ArrayViewMut1, Axis};
@@ -82,7 +81,8 @@ fn setup_logging() {
                 message
             ))
         })
-        .level(log::LevelFilter::Trace)
+        .level(log::LevelFilter::Info)
+        .level_for(module_path!(), log::LevelFilter::Trace)
         .chain(image_error_dispatch)
         .chain(std::io::stdout())
         .apply()
@@ -104,7 +104,10 @@ impl History {
     fn new(ctx: &mut Context, array_width: usize, array_height: usize, size: usize) -> Self {
         Self {
             history_steps: (0..size)
-                .map(|_| HistoryStep{cell_array: init_cell_array(array_width, array_height), computed_texture: GgImage::solid(ctx, 1, WHITE).unwrap()})
+                .map(|_| HistoryStep {
+                    cell_array: init_cell_array(array_width, array_height),
+                    computed_texture: GgImage::solid(ctx, 1, WHITE).unwrap(),
+                })
                 .collect(),
         }
     }
@@ -163,7 +166,7 @@ impl MyGame {
         MyGame {
             bounds: Rect::new(0.0, 0.0, pixels_x, pixels_y),
 
-            next_history_step: HistoryStep{
+            next_history_step: HistoryStep {
                 cell_array: init_cell_array(CONSTS.cell_array_width, CONSTS.cell_array_height),
                 computed_texture: GgImage::solid(ctx, 1, WHITE).unwrap(),
             },
@@ -184,9 +187,10 @@ impl MyGame {
                 global_similarity_value: 0.0,
             },
 
-            root_node: Box::new(
-                FloatColorNodes::generate_rng(&mut rng, mutagen::State::default()),
-            ),
+            root_node: Box::new(FloatColorNodes::generate_rng(
+                &mut rng,
+                mutagen::State::default(),
+            )),
 
             tree_dirty: true,
             current_t: 0,
@@ -262,7 +266,10 @@ impl EventHandler for MyGame {
         let slice_y = (timer::ticks(ctx) % CONSTS.tics_per_update) * slice_height;
         let slice_y_range = slice_y..slice_y + slice_height;
 
-        let mut new_update_slice = self.next_history_step.cell_array.slice_mut(s![slice_y_range, .., ..]);
+        let mut new_update_slice =
+            self.next_history_step
+                .cell_array
+                .slice_mut(s![slice_y_range, .., ..]);
         let new_update_iter = new_update_slice.lanes_mut(Axis(2));
 
         let history = &self.history;
@@ -299,15 +306,23 @@ impl EventHandler for MyGame {
 
             //TODO this should be a random neighbour
             let local_color = history.get(x, y, current_t);
-            let global_color = history.get(random::<usize>() % CONSTS.cell_array_width, random::<usize>() % CONSTS.cell_array_height, current_t);
+            let global_color = history.get(
+                random::<usize>() % CONSTS.cell_array_width,
+                random::<usize>() % CONSTS.cell_array_height,
+                current_t,
+            );
 
             UpdateStat {
-                activity_value: (get_average(older_color.into()) - get_average(current_color.into())).abs()
+                activity_value: (get_average(older_color.into())
+                    - get_average(current_color.into()))
+                .abs()
                     / total_cells as f32,
-                local_similarity_value: (1.0 - (get_average(local_color.into()) - get_average(current_color.into()))
-                    .abs()) / total_cells as f32,
-                global_similarity_value: (1.0 - (get_average(global_color.into()) - get_average(current_color.into()))
-                    .abs()) / total_cells as f32,
+                local_similarity_value: (1.0
+                    - (get_average(local_color.into()) - get_average(current_color.into())).abs())
+                    / total_cells as f32,
+                global_similarity_value: (1.0
+                    - (get_average(global_color.into()) - get_average(current_color.into())).abs())
+                    / total_cells as f32,
             }
         };
 
@@ -350,10 +365,8 @@ impl EventHandler for MyGame {
                 self.tree_dirty = false;
             }
 
-            self.next_history_step.computed_texture = 
-                compute_texture(
-                    ctx, 
-                    self.next_history_step.cell_array.view());
+            self.next_history_step.computed_texture =
+                compute_texture(ctx, self.next_history_step.cell_array.view());
 
             // Rotate the buffers by swapping
             let h_len = self.history.history_steps.len();
@@ -384,13 +397,15 @@ impl EventHandler for MyGame {
         let lerp_len = CONSTS.cell_array_lerp_length;
 
         // let mut alphas = Vec::new();
-        for i in 0..lerp_len
-        {
+        for i in 0..lerp_len {
             //let transparency = if i == 0 {1.0} else {if i == 1 {0.5} else {0.0}};
-            let alpha = (1.0 - ((i as f32 - lerp_value) / (lerp_len - 1) as f32).max(0.0).powf(4.0));
+            let alpha = 1.0
+                - ((i as f32 - lerp_value) / (lerp_len - 1) as f32)
+                    .max(0.0)
+                    .powf(4.0);
 
             let hist_len = self.history.history_steps.len();
-            let history_index = ((self.current_t + i + hist_len - lerp_len)) % hist_len;
+            let history_index = (self.current_t + i + hist_len - lerp_len) % hist_len;
 
             ggez::graphics::draw(
                 ctx,
