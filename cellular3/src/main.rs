@@ -11,6 +11,7 @@ use ggez::{
     input::keyboard,
     timer, Context, ContextBuilder, GameResult,
 };
+use itertools::Itertools;
 use log::{error, info};
 use mutagen::{Generatable, Mutatable};
 use ndarray::{s, Array3, ArrayView1, ArrayView3, ArrayViewMut1, Axis};
@@ -21,11 +22,11 @@ use structopt::StructOpt;
 use crate::{
     constants::*,
     datatype::{
-        colors::{get_average, IntColor},
+        colors::{get_average, ByteColor},
         continuous::*,
         image::IMAGE_PRELOADER,
     },
-    node::{color_nodes::IntColorNodes, Node},
+    node::{color_nodes::FloatColorNodes, Node},
     opts::Opts,
     updatestate::*,
     util::{DeterministicRng, RNG_SEED},
@@ -89,27 +90,33 @@ fn setup_logging() {
 }
 
 #[derive(Debug)]
+pub struct HistoryStep {
+    cell_array: Array3<u8>,
+    computed_texture: GgImage,
+}
+
+#[derive(Debug)]
 pub struct History {
-    cell_arrays: Vec<Array3<u8>>,
+    history_steps: Vec<HistoryStep>,
 }
 
 impl History {
-    fn new(array_width: usize, array_height: usize, size: usize) -> Self {
+    fn new(ctx: &mut Context, array_width: usize, array_height: usize, size: usize) -> Self {
         Self {
-            cell_arrays: (0..size)
-                .map(|_| init_cell_array(array_width, array_height))
+            history_steps: (0..size)
+                .map(|_| HistoryStep{cell_array: init_cell_array(array_width, array_height), computed_texture: GgImage::solid(ctx, 1, WHITE).unwrap()})
                 .collect(),
         }
     }
 
     fn get_raw(&self, x: usize, y: usize, t: usize) -> ArrayView1<u8> {
-        let array = &self.cell_arrays[t % self.cell_arrays.len()];
+        let array = &self.history_steps[t % self.history_steps.len()].cell_array;
         array.slice(s![y % array.dim().0, x % array.dim().1, ..])
     }
 
-    fn get(&self, x: usize, y: usize, t: usize) -> IntColor {
+    fn get(&self, x: usize, y: usize, t: usize) -> ByteColor {
         let raw = self.get_raw(x, y, t);
-        IntColor {
+        ByteColor {
             r: raw[0],
             g: raw[1],
             b: raw[2],
@@ -121,13 +128,8 @@ struct MyGame {
     //Screen bounds
     bounds: Rect,
 
-    // The actual cell array
-    // Dimensions are [y, x, c]
     history: History,
-    next_cell_array: Array3<u8>,
-
-    old_texture: GgImage,
-    current_texture: GgImage,
+    next_history_step: HistoryStep,
 
     //rule_sets: [RuleSet; MAX_COLORS],
 
@@ -135,10 +137,8 @@ struct MyGame {
     rolling_update_stat_total: UpdateStat,
     //The average update stat over time, calculated by averaging rolling total and itself once an update
     average_update_stat: UpdateStat,
-    //The mechanism responsible for creating an initial state if all automata have died
-    //reseeder: Reseeder,
     //The root node for the tree that computes the next screen state
-    root_node: Box<IntColorNodes>,
+    root_node: Box<FloatColorNodes>,
 
     tree_dirty: bool,
     current_t: usize,
@@ -150,8 +150,6 @@ impl MyGame {
     pub fn new(ctx: &mut Context, opts: Opts) -> MyGame {
         // Load/create resources such as images here.
         let (pixels_x, pixels_y) = ggez::graphics::size(ctx);
-
-        let dummy_texture = GgImage::solid(ctx, 1, WHITE).unwrap();
 
         if let Some(seed) = opts.seed {
             info!("Manually setting RNG seed");
@@ -165,58 +163,29 @@ impl MyGame {
         MyGame {
             bounds: Rect::new(0.0, 0.0, pixels_x, pixels_y),
 
-            next_cell_array: init_cell_array(CONSTS.cell_array_width, CONSTS.cell_array_height),
+            next_history_step: HistoryStep{
+                cell_array: init_cell_array(CONSTS.cell_array_width, CONSTS.cell_array_height),
+                computed_texture: GgImage::solid(ctx, 1, WHITE).unwrap(),
+            },
             history: History::new(
+                ctx,
                 CONSTS.cell_array_width,
                 CONSTS.cell_array_height,
                 CONSTS.cell_array_history_length,
             ),
-
-            old_texture: dummy_texture.clone(),
-            current_texture: dummy_texture,
-
-            // rule_sets: [
-            //     generate_random_rule_set(),
-            //     generate_random_rule_set(),
-            //     generate_random_rule_set(),
-            //     generate_random_rule_set(),
-            //     generate_random_rule_set(),
-            //     generate_random_rule_set(),
-            //     generate_random_rule_set(),
-            //     generate_random_rule_set(),
-            // ],
             rolling_update_stat_total: UpdateStat {
                 activity_value: 0.0,
-                similarity_value: 0.0,
+                local_similarity_value: 0.0,
+                global_similarity_value: 0.0,
             },
             average_update_stat: UpdateStat {
                 activity_value: 0.0,
-                similarity_value: 0.0,
+                local_similarity_value: 0.0,
+                global_similarity_value: 0.0,
             },
 
-            // reseeder: Reseeder::Modulus {
-            //     x_mod: 4,
-            //     y_mod: 4,
-            //     x_offset: random::<usize>() % CONSTS.cell_array_width,
-            //     y_offset: random::<usize>() % CONSTS.cell_array_height,
-            //     color_table: Array2::from_shape_fn((2, 2), |_| get_random_color()),
-            // },
             root_node: Box::new(
-                IntColorNodes::generate_rng(&mut rng, mutagen::State::default()),
-                // PalletteColorNodes::EqColor {
-                //     child_a: Box::new(PalletteColorNodes::FromUNFloat {
-                //         child: UNFloatNodes::FromSNFloat {
-                //             child: Box::new(SNFloatNodes::RidgedMultiNoise { noise: RidgedMulti::new() }),
-                //         },
-                //     }),
-                //     child_b: Box::new(PalletteColorNodes::FromUNFloat {
-                //         child: UNFloatNodes::FromSNFloat {
-                //             child: Box::new(SNFloatNodes::WorleyNoise {
-                //                 noise: Worley::new(),
-                //             }),
-                //         },
-                //     }),
-                // },
+                FloatColorNodes::generate_rng(&mut rng, mutagen::State::default()),
             ),
 
             tree_dirty: true,
@@ -226,81 +195,6 @@ impl MyGame {
         }
     }
 }
-
-// fn get_random_color() -> PalletteColor {
-//     PalletteColor::from_index(random::<usize>() % MAX_COLORS)
-// }
-
-//Get the alive neighbours surrounding x,y in a moore neighbourhood, this number should not exceed 8
-// fn get_alive_neighbours(
-//     old_cell_array: ArrayView2<'_, PalletteColor>,
-//     x: i32,
-//     y: i32,
-// ) -> ([usize; MAX_COLORS], i32) {
-//     let mut alive_neighbours = [0 as usize; MAX_COLORS]; //An array containing neighbour information for each color
-//     let mut similar_neighbours = 0;
-
-//     let this_color = old_cell_array[[x as usize, y as usize]];
-
-//     for xx in -1..=1 {
-//         for yy in -1..=1 {
-//             if !(xx == 0 && yy == 0) {
-//                 let offset_point = wrap_point_to_cell_array(old_cell_array, x + xx, y + yy);
-
-//                 let neighbour_color =
-//                     old_cell_array[[offset_point.0 as usize, offset_point.1 as usize]];
-
-//                 alive_neighbours[neighbour_color.to_index()] += 1;
-
-//                 if neighbour_color == this_color {
-//                     similar_neighbours += 1;
-//                 }
-//             }
-//         }
-//     }
-
-//     (alive_neighbours, similar_neighbours)
-// }
-
-//Get the next state for a cell
-// fn get_next_color(
-//     rule_sets: [RuleSet; MAX_COLORS],
-//     old_color: PalletteColor,
-//     alive_neighbours: [usize; MAX_COLORS],
-// ) -> PalletteColor {
-//     let mut new_color = old_color;
-
-//     for i in 0..MAX_COLORS {
-//         let index_color = PalletteColor::from_index(i);
-//         let current_rule = rule_sets[new_color.to_index()].rules[i];
-
-//         if new_color.has_color(index_color)
-//         //This color is alive
-//         {
-//             //This color is killed
-//             if current_rule.death_neighbours[alive_neighbours[i]] {
-//                 new_color = PalletteColor::from_components(new_color.take_color(index_color));
-//             }
-//         } else {
-//             //This color is dead but is being born again
-//             if current_rule.life_neighbours[alive_neighbours[i]] {
-//                 new_color = PalletteColor::from_components(new_color.give_color(index_color));
-//             }
-//         }
-//     }
-
-//     new_color
-// }
-
-//Simple color lerp - May be able to find a better one here: https://www.alanzucconi.com/2016/01/06/colour-interpolation/
-//fn lerp_float_color(a: FloatColor, b: FloatColor, value: f32) -> FloatColor {
-//    FloatColor {
-//        r: a.r + (b.r - a.r) * value,
-//        g: a.g + (b.g - a.g) * value,
-//        b: a.b + (b.b - a.b) * value,
-//        a: 1.0, //We don't care about transparency lerping
-//    }
-//}
 
 #[derive(Default, Clone, Copy)]
 struct UpdateStat {
@@ -313,7 +207,8 @@ struct UpdateStat {
     //--If all neighbours are similar, we have close to a flat color
     //--If all neighbours are distinct, we have visual noise
     activity_value: f32,
-    similarity_value: f32,
+    local_similarity_value: f32,
+    global_similarity_value: f32,
 }
 
 impl Add<UpdateStat> for UpdateStat {
@@ -322,7 +217,8 @@ impl Add<UpdateStat> for UpdateStat {
     fn add(self, other: UpdateStat) -> UpdateStat {
         UpdateStat {
             activity_value: self.activity_value + other.activity_value,
-            similarity_value: self.similarity_value + other.similarity_value,
+            local_similarity_value: self.local_similarity_value + other.local_similarity_value,
+            global_similarity_value: self.global_similarity_value + other.global_similarity_value,
         }
     }
 }
@@ -333,7 +229,8 @@ impl Div<f32> for UpdateStat {
     fn div(self, other: f32) -> UpdateStat {
         UpdateStat {
             activity_value: self.activity_value / other,
-            similarity_value: self.similarity_value / other,
+            local_similarity_value: self.local_similarity_value / other,
+            global_similarity_value: self.global_similarity_value / other,
         }
     }
 }
@@ -365,7 +262,7 @@ impl EventHandler for MyGame {
         let slice_y = (timer::ticks(ctx) % CONSTS.tics_per_update) * slice_height;
         let slice_y_range = slice_y..slice_y + slice_height;
 
-        let mut new_update_slice = self.next_cell_array.slice_mut(s![slice_y_range, .., ..]);
+        let mut new_update_slice = self.next_history_step.cell_array.slice_mut(s![slice_y_range, .., ..]);
         let new_update_iter = new_update_slice.lanes_mut(Axis(2));
 
         let history = &self.history;
@@ -379,7 +276,7 @@ impl EventHandler for MyGame {
             // let neighbour_result =
             //     get_alive_neighbours(cell_array_view, x as i32, y as i32 + slice_y);
 
-            let new_color = root_node.compute(UpdateState {
+            let compute_result = root_node.compute(UpdateState {
                 coordinate_set: CoordinateSet {
                     x: UNFloat::new(x as f32 / CONSTS.cell_array_width as f32).to_signed(),
                     y: UNFloat::new(
@@ -391,6 +288,8 @@ impl EventHandler for MyGame {
                 history,
             }); //get_next_color(rule_sets, *current, neighbour_result.0);
 
+            let new_color = ByteColor::from(compute_result);
+
             new[0] = new_color.r;
             new[1] = new_color.g;
             new[2] = new_color.b;
@@ -398,12 +297,17 @@ impl EventHandler for MyGame {
             let current_color = history.get(x, y, current_t);
             let older_color = history.get(x, y, usize::max(current_t, 1) - 1);
 
+            //TODO this should be a random neighbour
+            let local_color = history.get(x, y, current_t);
+            let global_color = history.get(random::<usize>() % CONSTS.cell_array_width, random::<usize>() % CONSTS.cell_array_height, current_t);
+
             UpdateStat {
-                //Two checks are necessary to avoid two tic oscillators being counted as active cells
-                activity_value: ((get_average(older_color.into()) - get_average(new_color.into()))
-                    / total_cells as f32)
-                    .abs(),
-                similarity_value: 0.0, //neighbour_result.1,
+                activity_value: (get_average(older_color.into()) - get_average(current_color.into())).abs()
+                    / total_cells as f32,
+                local_similarity_value: (1.0 - (get_average(local_color.into()) - get_average(current_color.into()))
+                    .abs()) / total_cells as f32,
+                global_similarity_value: (1.0 - (get_average(global_color.into()) - get_average(current_color.into()))
+                    .abs()) / total_cells as f32,
             }
         };
 
@@ -425,53 +329,19 @@ impl EventHandler for MyGame {
             self.average_update_stat =
                 (self.average_update_stat + self.rolling_update_stat_total) / 2.0;
 
-            // let sqrt_stagnant_cells =
-            //     ((total_cells - slice_update_stat.active_cells) as f32).sqrt() as i32;
-
-            // let similarity_value = self.average_update_stat.similar_neighbours as f32
-            //     / (total_cells * MAX_NEIGHBOUR_COUNT) as f32;
-
-            // let similarity_value_squared = similarity_value * similarity_value;
-            // let activity_value_squared = activity_value * activity_value;
-
-            // if activity_value < 0.001 || similarity_value > 0.999 {
-            //     //if random::<i32>() % (sqrt_stagnant_cells / 2 + 1) > slice_update_stat.active_cells {
-            //     //&self.reseeder.reseed(&mut self.new_cell_array);
-            //     &self.reseeder.mutate();
-
-            //     mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);
-
-            //     // for _i in 0..random::<i32>() % (sqrt_stagnant_cells + 1) {
-            //     //     self.new_cell_array[[
-            //     //         random::<usize>() % width as usize,
-            //     //         random::<usize>() % height as usize,
-            //     //     ]] = get_random_color();
-            //     // }
-            // }
-
-            // if similarity_value < random::<f32>() //It's noisy
-            // || similarity_value_squared > random::<f32>() //It's flat
-            // || activity_value > random::<f32>() //It's turbulent
-            // || activity_value_squared < random::<f32>()
-            // //It's unchanging
-            // {
-            //     let mutations = TICS_PER_UPDATE;
-
-            //     for _i in 0..random::<i32>() % mutations {
-            //         mutate_rule_set(&mut self.rule_sets[random::<usize>() % MAX_COLORS]);
-            //     }
-            // }
+            dbg!(timer::fps(ctx));
 
             self.rolling_update_stat_total = UpdateStat {
                 activity_value: 0.0,
-                similarity_value: 0.0,
+                local_similarity_value: 0.0,
+                global_similarity_value: 0.0,
             };
 
             if self.tree_dirty
-                || self
-                    .rng
-                    .gen_range(0.0, dbg!(self.average_update_stat.activity_value) as f64)
-                    < 0.1
+                || (self.rng.gen::<f64>() * dbg!(f64::from(self.average_update_stat.activity_value)) < CONSTS.activity_value_lower_bound
+                //|| self.rng.gen::<f64>() * dbg!(f64::from(self.average_update_stat.local_similarity_value)) > CONSTS.local_similarity_upper_bound
+                || dbg!(f64::from(self.average_update_stat.global_similarity_value)) >= CONSTS.global_similarity_upper_bound)
+                || self.average_update_stat.activity_value > 0.5
             {
                 info!("====TIC: {} MUTATING TREE====", self.current_t);
                 self.root_node
@@ -480,14 +350,16 @@ impl EventHandler for MyGame {
                 self.tree_dirty = false;
             }
 
-            std::mem::swap(&mut self.old_texture, &mut self.current_texture);
-            self.current_texture = compute_texture(ctx, self.next_cell_array.view());
+            self.next_history_step.computed_texture = 
+                compute_texture(
+                    ctx, 
+                    self.next_history_step.cell_array.view());
 
             // Rotate the buffers by swapping
-            let h_len = self.history.cell_arrays.len();
+            let h_len = self.history.history_steps.len();
             std::mem::swap(
-                &mut self.history.cell_arrays[current_t % h_len],
-                &mut self.next_cell_array,
+                &mut self.history.history_steps[current_t % h_len],
+                &mut self.next_history_step,
             );
 
             self.current_t += 1;
@@ -509,12 +381,27 @@ impl EventHandler for MyGame {
         let lerp_value =
             (timer::ticks(ctx) % CONSTS.tics_per_update) as f32 / CONSTS.tics_per_update as f32;
 
-        ggez::graphics::draw(ctx, &self.old_texture, base_params)?;
-        ggez::graphics::draw(
-            ctx,
-            &self.current_texture,
-            base_params.color(GgColor::new(1.0, 1.0, 1.0, lerp_value)),
-        )?;
+        let lerp_len = CONSTS.cell_array_lerp_length;
+
+        // let mut alphas = Vec::new();
+        for i in 0..lerp_len
+        {
+            //let transparency = if i == 0 {1.0} else {if i == 1 {0.5} else {0.0}};
+            let alpha = (1.0 - ((i as f32 - lerp_value) / (lerp_len - 1) as f32).max(0.0).powf(4.0));
+
+            let hist_len = self.history.history_steps.len();
+            let history_index = ((self.current_t + i + hist_len - lerp_len)) % hist_len;
+
+            ggez::graphics::draw(
+                ctx,
+                &self.history.history_steps[history_index].computed_texture,
+                base_params.color(GgColor::new(1.0, 1.0, 1.0, alpha)),
+            )?;
+
+            // alphas.push(alpha);
+        }
+
+        // info!("{}", alphas.iter().map(|a| format!("{:.2}", a)).join(","));
 
         graphics::present(ctx)?;
 

@@ -22,19 +22,17 @@ pub enum ColorBlendNodes {
         color_b: Box<FloatColorNodes>,
         value: Box<UNFloatNodes>,
     },
-    // #[mutagen(gen_weight = branch_node_weight)]
-    // Overlay {
-    //     color_a: Box<FloatColorNodes>,
-    //     color_b: Box<FloatColorNodes>,
-    //     value: Box<UNFloatNodes>,
-    // },
+    #[mutagen(gen_weight = branch_node_weight)]
+    Overlay {
+        color_a: Box<FloatColorNodes>,
+        color_b: Box<FloatColorNodes>,
+    },
 
-    // #[mutagen(gen_weight = branch_node_weight)]
-    // ScreenDodge {
-    //     color_a: Box<FloatColorNodes>,
-    //     color_b: Box<FloatColorNodes>,
-    //     value: Box<UNFloatNodes>,
-    // },
+    #[mutagen(gen_weight = branch_node_weight)]
+    ScreenDodge {
+        color_a: Box<FloatColorNodes>,
+        color_b: Box<FloatColorNodes>,
+    },
 
     // #[mutagen(gen_weight = branch_node_weight)]
     // ColorDodge {
@@ -152,8 +150,42 @@ impl Node for ColorBlendNodes {
                     color_b.compute(state)
                 }
             }
-            // Overlay {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
-            // ScreenDodge {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
+            Overlay {color_a, color_b} => 
+            {
+                let a_result = color_a.compute(state);
+                let b_result = color_b.compute(state);
+
+                FloatColor {
+                    r: if a_result.r < 0.5 {
+                        (2.0*a_result.r*b_result.r).max(1.0)
+                    }else{
+                        1.0 - (2.0 * ((1.0 - a_result.r) * (1.0 - b_result.r)))
+                    },
+                    g: if a_result.g < 0.5 {
+                        (2.0*a_result.g*b_result.g).max(1.0)
+                    }else{
+                        1.0 - (2.0 * ((1.0 - a_result.g) * (1.0 - b_result.g)))
+                    },
+                    b: if a_result.b < 0.5 {
+                        (2.0*a_result.b*b_result.b).max(1.0)
+                    }else{
+                        1.0 - (2.0 * ((1.0 - a_result.b) * (1.0 - b_result.b)))
+                    },
+                    a: 1.0,
+                }
+            },
+            ScreenDodge {color_a, color_b} => 
+            {
+                let result_a = color_a.compute(state);
+                let result_b = color_b.compute(state);
+
+                FloatColor{
+                    r: 1.0 - ((1.0 - result_a.r) * (1.0 - result_b.r)),
+                    g: 1.0 - ((1.0 - result_a.g) * (1.0 - result_b.g)),
+                    b: 1.0 - ((1.0 - result_a.b) * (1.0 - result_b.b)),
+                    a: 1.0,
+                }
+            },
             // ColorDodge {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
             // LinearDodge {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
             // Multiply {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},

@@ -11,13 +11,23 @@ pub fn get_average(c: FloatColor) -> f32 {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct IntColor {
+pub struct ByteColor {
     pub r: u8,
     pub g: u8,
     pub b: u8,
 }
 
-impl Generatable for IntColor {
+impl From<FloatColor> for ByteColor{
+    fn from(other: FloatColor) -> Self {
+        Self{
+            r: (other.r * 255.0) as u8,
+            g: (other.g * 255.0) as u8,
+            b: (other.b * 255.0) as u8,
+        }
+    }
+}
+
+impl Generatable for ByteColor {
     fn generate_rng<R: Rng + ?Sized>(rng: &mut R, _state: mutagen::State) -> Self {
         Self {
             r: rng.gen(),
@@ -27,13 +37,13 @@ impl Generatable for IntColor {
     }
 }
 
-impl Mutatable for IntColor {
+impl Mutatable for ByteColor {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, state: mutagen::State) {
         *self = Self::generate_rng(rng, state);
     }
 }
 
-impl From<image::Rgb<u8>> for IntColor {
+impl From<image::Rgb<u8>> for ByteColor {
     fn from(c: image::Rgb<u8>) -> Self {
         Self {
             r: c.0[0],
@@ -43,8 +53,8 @@ impl From<image::Rgb<u8>> for IntColor {
     }
 }
 
-impl From<IntColor> for FloatColor {
-    fn from(c: IntColor) -> FloatColor {
+impl From<ByteColor> for FloatColor {
+    fn from(c: ByteColor) -> FloatColor {
         FloatColor {
             r: c.r as f32 / 256.0,
             g: c.g as f32 / 256.0,
@@ -54,8 +64,8 @@ impl From<IntColor> for FloatColor {
     }
 }
 
-impl From<PalletteColor> for FloatColor {
-    fn from(c: PalletteColor) -> FloatColor {
+impl From<BitColor> for FloatColor {
+    fn from(c: BitColor) -> FloatColor {
         let color_components = c.to_components();
 
         FloatColor {
@@ -108,7 +118,7 @@ pub fn get_hue_unfloat(c: FloatColor) -> UNFloat {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum PalletteColor {
+pub enum BitColor {
     Black,
     Red,
     Green,
@@ -119,29 +129,29 @@ pub enum PalletteColor {
     White,
 }
 
-impl PalletteColor {
-    pub fn get_color(self) -> IntColor {
+impl BitColor {
+    pub fn get_color(self) -> ByteColor {
         match self {
-            PalletteColor::Black => IntColor { r: 0, g: 0, b: 0 },
-            PalletteColor::Red => IntColor { r: 255, g: 0, b: 0 },
-            PalletteColor::Green => IntColor { r: 0, g: 255, b: 0 },
-            PalletteColor::Blue => IntColor { r: 0, g: 0, b: 255 },
-            PalletteColor::Cyan => IntColor {
+            BitColor::Black => ByteColor { r: 0, g: 0, b: 0 },
+            BitColor::Red => ByteColor { r: 255, g: 0, b: 0 },
+            BitColor::Green => ByteColor { r: 0, g: 255, b: 0 },
+            BitColor::Blue => ByteColor { r: 0, g: 0, b: 255 },
+            BitColor::Cyan => ByteColor {
                 r: 0,
                 g: 255,
                 b: 255,
             },
-            PalletteColor::Magenta => IntColor {
+            BitColor::Magenta => ByteColor {
                 r: 255,
                 g: 0,
                 b: 255,
             },
-            PalletteColor::Yellow => IntColor {
+            BitColor::Yellow => ByteColor {
                 r: 255,
                 g: 255,
                 b: 0,
             },
-            PalletteColor::White => IntColor {
+            BitColor::White => ByteColor {
                 r: 255,
                 g: 255,
                 b: 255,
@@ -149,33 +159,37 @@ impl PalletteColor {
         }
     }
 
-    pub fn from_float_color(c: FloatColor) -> PalletteColor {
-        PalletteColor::from_components([c.r >= 0.5, c.g >= 0.5, c.b >= 0.5])
+    pub fn from_float_color(c: FloatColor) -> BitColor {
+        BitColor::from_components([c.r >= 0.5, c.g >= 0.5, c.b >= 0.5])
+    }
+
+    pub fn from_byte_color(c: ByteColor) -> BitColor {
+        BitColor::from_components([c.r >= 127, c.g >= 127, c.b >= 127])
     }
 
     pub fn to_index(self) -> usize {
         match self {
-            PalletteColor::Black => 0,
-            PalletteColor::Red => 1,
-            PalletteColor::Green => 2,
-            PalletteColor::Blue => 3,
-            PalletteColor::Cyan => 4,
-            PalletteColor::Magenta => 5,
-            PalletteColor::Yellow => 6,
-            PalletteColor::White => 7,
+            BitColor::Black => 0,
+            BitColor::Red => 1,
+            BitColor::Green => 2,
+            BitColor::Blue => 3,
+            BitColor::Cyan => 4,
+            BitColor::Magenta => 5,
+            BitColor::Yellow => 6,
+            BitColor::White => 7,
         }
     }
 
-    pub fn from_index(index: usize) -> PalletteColor {
+    pub fn from_index(index: usize) -> BitColor {
         match index {
-            0 => PalletteColor::Black,
-            1 => PalletteColor::Red,
-            2 => PalletteColor::Green,
-            3 => PalletteColor::Blue,
-            4 => PalletteColor::Cyan,
-            5 => PalletteColor::Magenta,
-            6 => PalletteColor::Yellow,
-            7 => PalletteColor::White,
+            0 => BitColor::Black,
+            1 => BitColor::Red,
+            2 => BitColor::Green,
+            3 => BitColor::Blue,
+            4 => BitColor::Cyan,
+            5 => BitColor::Magenta,
+            6 => BitColor::Yellow,
+            7 => BitColor::White,
             _ => {
                 dbg!(index);
                 panic!()
@@ -185,31 +199,31 @@ impl PalletteColor {
 
     pub fn to_components(self) -> [bool; 3] {
         match self {
-            PalletteColor::Black => [false, false, false],
-            PalletteColor::Red => [true, false, false],
-            PalletteColor::Green => [false, true, false],
-            PalletteColor::Blue => [false, false, true],
-            PalletteColor::Cyan => [false, true, true],
-            PalletteColor::Magenta => [true, false, true],
-            PalletteColor::Yellow => [true, true, false],
-            PalletteColor::White => [true, true, true],
+            BitColor::Black => [false, false, false],
+            BitColor::Red => [true, false, false],
+            BitColor::Green => [false, true, false],
+            BitColor::Blue => [false, false, true],
+            BitColor::Cyan => [false, true, true],
+            BitColor::Magenta => [true, false, true],
+            BitColor::Yellow => [true, true, false],
+            BitColor::White => [true, true, true],
         }
     }
 
-    pub fn from_components(components: [bool; 3]) -> PalletteColor {
+    pub fn from_components(components: [bool; 3]) -> BitColor {
         match components {
-            [false, false, false] => PalletteColor::Black,
-            [true, false, false] => PalletteColor::Red,
-            [false, true, false] => PalletteColor::Green,
-            [false, false, true] => PalletteColor::Blue,
-            [false, true, true] => PalletteColor::Cyan,
-            [true, false, true] => PalletteColor::Magenta,
-            [true, true, false] => PalletteColor::Yellow,
-            [true, true, true] => PalletteColor::White,
+            [false, false, false] => BitColor::Black,
+            [true, false, false] => BitColor::Red,
+            [false, true, false] => BitColor::Green,
+            [false, false, true] => BitColor::Blue,
+            [false, true, true] => BitColor::Cyan,
+            [true, false, true] => BitColor::Magenta,
+            [true, true, false] => BitColor::Yellow,
+            [true, true, true] => BitColor::White,
         }
     }
 
-    pub fn has_color(self, other: PalletteColor) -> bool {
+    pub fn has_color(self, other: BitColor) -> bool {
         let mut has_color = false;
         let current_color = self.to_components();
         let other_color = other.to_components();
@@ -221,7 +235,7 @@ impl PalletteColor {
         has_color
     }
 
-    pub fn give_color(self, other: PalletteColor) -> [bool; 3] {
+    pub fn give_color(self, other: BitColor) -> [bool; 3] {
         let mut new_color = [false; 3];
         let current_color = self.to_components();
         let other_color = other.to_components();
@@ -233,7 +247,7 @@ impl PalletteColor {
         new_color
     }
 
-    pub fn take_color(self, other: PalletteColor) -> [bool; 3] {
+    pub fn take_color(self, other: BitColor) -> [bool; 3] {
         let mut new_color = [false; 3];
         let current_color = self.to_components();
         let other_color = other.to_components();
@@ -245,7 +259,7 @@ impl PalletteColor {
         new_color
     }
 
-    pub fn xor_color(self, other: PalletteColor) -> [bool; 3] {
+    pub fn xor_color(self, other: BitColor) -> [bool; 3] {
         let mut new_color = [false; 3];
         let current_color = self.to_components();
         let other_color = other.to_components();
@@ -258,7 +272,7 @@ impl PalletteColor {
         new_color
     }
 
-    pub fn eq_color(self, other: PalletteColor) -> [bool; 3] {
+    pub fn eq_color(self, other: BitColor) -> [bool; 3] {
         let mut new_color = [false; 3];
         let current_color = self.to_components();
         let other_color = other.to_components();
@@ -271,13 +285,13 @@ impl PalletteColor {
     }
 }
 
-impl Generatable for PalletteColor {
+impl Generatable for BitColor {
     fn generate_rng<R: Rng + ?Sized>(rng: &mut R, _state: mutagen::State) -> Self {
         Self::from_components([rng.gen(), rng.gen(), rng.gen()])
     }
 }
 
-impl Mutatable for PalletteColor {
+impl Mutatable for BitColor {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, rng: &mut R, _state: mutagen::State) {
         let current_color = self.to_components();
         let mut new_color = [rng.gen(), rng.gen(), rng.gen()];

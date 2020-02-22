@@ -5,7 +5,7 @@ use ndarray::Array2;
 use rand::prelude::*;
 
 pub trait Reseed {
-    fn reseed(&self, cell_array: &mut Array2<PalletteColor>) {
+    fn reseed(&self, cell_array: &mut Array2<BitColor>) {
         let cell_array_width = cell_array.dim().0;
         let cell_array_height = cell_array.dim().1;
 
@@ -17,7 +17,7 @@ pub trait Reseed {
     }
 
     fn mutate(&mut self);
-    fn reseed_cell(&self, x: usize, y: usize) -> PalletteColor;
+    fn reseed_cell(&self, x: usize, y: usize) -> BitColor;
 }
 
 pub enum Reseeder {
@@ -26,12 +26,12 @@ pub enum Reseeder {
         y_mod: usize,
         x_offset: usize,
         y_offset: usize,
-        color_table: Array2<PalletteColor>,
+        color_table: Array2<BitColor>,
     },
 }
 
 impl Reseed for Reseeder {
-    fn reseed_cell(&self, x: usize, y: usize) -> PalletteColor {
+    fn reseed_cell(&self, x: usize, y: usize) -> BitColor {
         match self {
             Reseeder::Modulus {
                 x_mod,

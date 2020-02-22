@@ -1,3 +1,4 @@
-// pub struct Neighbourhood {
-//     Constant{}//TODO implement
-// }
+pub struct Neighbourhood {
+    Moore,
+    VonNeumann,
+}

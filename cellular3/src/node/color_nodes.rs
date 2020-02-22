@@ -17,6 +17,11 @@ pub enum FloatColorNodes {
     #[mutagen(gen_weight = leaf_node_weight)]
     Gray,
 
+    #[mutagen(gen_weight = leaf_node_weight)]
+    FromImage { image: Image },
+    #[mutagen(gen_weight = leaf_node_weight)]
+    FromCellArray,
+
     #[mutagen(gen_weight = pipe_node_weight)]
     Grayscale { child: Box<UNFloatNodes> },
 
@@ -38,10 +43,10 @@ pub enum FloatColorNodes {
     FromBlend { child: Box<ColorBlendNodes> },
 
     #[mutagen(gen_weight = pipe_node_weight)]
-    FromPalletteColor { child: Box<PalletteColorNodes> },
+    FromBitColor { child: Box<BitColorNodes> },
 
     #[mutagen(gen_weight = pipe_node_weight)]
-    FromIntColor { child: Box<IntColorNodes> },
+    FromByteColor { child: Box<ByteColorNodes> },
 
     #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
@@ -70,6 +75,19 @@ impl Node for FloatColorNodes {
                 b: 1.0,
                 a: 1.0,
             },
+            FromImage { image } => image.get_pixel_normalised(
+                state.coordinate_set.x,
+                state.coordinate_set.y,
+                state.coordinate_set.t,
+            ).into(),
+            FromCellArray => state.history.get(
+                ((state.coordinate_set.x.into_inner() + 1.0) * 0.5 * CONSTS.cell_array_width as f32)
+                    as usize,
+                ((state.coordinate_set.y.into_inner() + 1.0)
+                    * 0.5
+                    * CONSTS.cell_array_height as f32) as usize,
+                state.coordinate_set.t as usize,
+            ).into(),
             Grayscale { child } => {
                 let value = child.compute(state).into_inner() as f32;
                 FloatColor {
@@ -96,12 +114,12 @@ impl Node for FloatColorNodes {
                 float_color_from_pallette_rgb(rgb)
             }
             FromBlend { child } => child.compute(state),
-            FromPalletteColor { child } => FloatColor::from(child.compute(state)),
+            FromBitColor { child } => FloatColor::from(child.compute(state)),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
                 ..state
             }),
-            FromIntColor { child } => FloatColor::from(child.compute(state)),
+            FromByteColor { child } => FloatColor::from(child.compute(state)),
             IfElse {
                 predicate,
                 child_a,
@@ -119,32 +137,32 @@ impl Node for FloatColorNodes {
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
-pub enum PalletteColorNodes {
+pub enum BitColorNodes {
     #[mutagen(gen_weight = leaf_node_weight)]
-    Constant { value: PalletteColor },
+    Constant { value: BitColor },
 
     #[mutagen(gen_weight = branch_node_weight)]
     GiveColor {
-        child_a: Box<PalletteColorNodes>,
-        child_b: Box<PalletteColorNodes>,
+        child_a: Box<BitColorNodes>,
+        child_b: Box<BitColorNodes>,
     },
 
     #[mutagen(gen_weight = branch_node_weight)]
     TakeColor {
-        child_a: Box<PalletteColorNodes>,
-        child_b: Box<PalletteColorNodes>,
+        child_a: Box<BitColorNodes>,
+        child_b: Box<BitColorNodes>,
     },
 
     #[mutagen(gen_weight = branch_node_weight)]
     XorColor {
-        child_a: Box<PalletteColorNodes>,
-        child_b: Box<PalletteColorNodes>,
+        child_a: Box<BitColorNodes>,
+        child_b: Box<BitColorNodes>,
     },
 
     #[mutagen(gen_weight = branch_node_weight)]
     EqColor {
-        child_a: Box<PalletteColorNodes>,
-        child_b: Box<PalletteColorNodes>,
+        child_a: Box<BitColorNodes>,
+        child_b: Box<BitColorNodes>,
     },
 
     #[mutagen(gen_weight = branch_node_weight)]
@@ -159,10 +177,12 @@ pub enum PalletteColorNodes {
 
     #[mutagen(gen_weight = pipe_node_weight)]
     FromFloatColor { child: Box<FloatColorNodes> },
+    #[mutagen(gen_weight = pipe_node_weight)]
+    FromByteColor { child: Box<ByteColorNodes> },
 
     #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
-        child: Box<PalletteColorNodes>,
+        child: Box<BitColorNodes>,
         child_state: Box<CoordMapNodes>,
     },
     #[mutagen(gen_weight = branch_node_weight)]
@@ -173,34 +193,35 @@ pub enum PalletteColorNodes {
     },
 }
 
-impl Node for PalletteColorNodes {
-    type Output = PalletteColor;
+impl Node for BitColorNodes {
+    type Output = BitColor;
 
     fn compute(&self, state: UpdateState) -> Self::Output {
-        use PalletteColorNodes::*;
+        use BitColorNodes::*;
         match self {
             Constant { value } => *value,
-            GiveColor { child_a, child_b } => PalletteColor::from_components(
+            GiveColor { child_a, child_b } => BitColor::from_components(
                 child_a.compute(state).give_color(child_b.compute(state)),
             ),
-            TakeColor { child_a, child_b } => PalletteColor::from_components(
+            TakeColor { child_a, child_b } => BitColor::from_components(
                 child_a.compute(state).take_color(child_b.compute(state)),
             ),
-            XorColor { child_a, child_b } => PalletteColor::from_components(
+            XorColor { child_a, child_b } => BitColor::from_components(
                 child_a.compute(state).xor_color(child_b.compute(state)),
             ),
-            EqColor { child_a, child_b } => PalletteColor::from_components(
+            EqColor { child_a, child_b } => BitColor::from_components(
                 child_a.compute(state).eq_color(child_b.compute(state)),
             ),
-            FromComponents { r, g, b } => PalletteColor::from_components([
+            FromComponents { r, g, b } => BitColor::from_components([
                 r.compute(state).into_inner(),
                 g.compute(state).into_inner(),
                 b.compute(state).into_inner(),
             ]),
-            FromUNFloat { child } => PalletteColor::from_index(
+            FromUNFloat { child } => BitColor::from_index(
                 (child.compute(state).into_inner() * 0.99 * (CONSTS.max_colors) as f32) as usize,
             ),
-            FromFloatColor { child } => PalletteColor::from_float_color(child.compute(state)),
+            FromFloatColor { child } => BitColor::from_float_color(child.compute(state)),
+            FromByteColor { child } => BitColor::from_byte_color(child.compute(state)),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
                 ..state
@@ -222,12 +243,19 @@ impl Node for PalletteColorNodes {
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
-pub enum IntColorNodes {
+pub enum ByteColorNodes {
     #[mutagen(gen_weight = leaf_node_weight)]
-    Constant { value: IntColor },
+    Constant { value: ByteColor },
 
     #[mutagen(gen_weight = leaf_node_weight)]
     FromImage { image: Image },
+    #[mutagen(gen_weight = leaf_node_weight)]
+    FromCellArray,
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    FromFloatColor { child: Box<FloatColorNodes> },
+    #[mutagen(gen_weight = pipe_node_weight)]
+    FromBitColor { child: Box<FloatColorNodes> },
 
     #[mutagen(gen_weight = branch_node_weight)]
     Decompose {
@@ -238,12 +266,9 @@ pub enum IntColorNodes {
 
     #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
-        child: Box<IntColorNodes>,
+        child: Box<ByteColorNodes>,
         child_state: Box<CoordMapNodes>,
     },
-
-    #[mutagen(gen_weight = leaf_node_weight)]
-    FromCellArray,
 
     #[mutagen(gen_weight = branch_node_weight)]
     IfElse {
@@ -253,11 +278,11 @@ pub enum IntColorNodes {
     },
 }
 
-impl Node for IntColorNodes {
-    type Output = IntColor;
+impl Node for ByteColorNodes {
+    type Output = ByteColor;
 
     fn compute(&self, state: UpdateState) -> Self::Output {
-        use IntColorNodes::*;
+        use ByteColorNodes::*;
 
         match self {
             Constant { value } => *value,
@@ -266,15 +291,6 @@ impl Node for IntColorNodes {
                 state.coordinate_set.y,
                 state.coordinate_set.t,
             ),
-            Decompose { r, g, b } => IntColor {
-                r: r.compute(state).into_inner(),
-                g: g.compute(state).into_inner(),
-                b: b.compute(state).into_inner(),
-            },
-            ModifyState { child, child_state } => child.compute(UpdateState {
-                coordinate_set: child_state.compute(state),
-                ..state
-            }),
             FromCellArray => state.history.get(
                 ((state.coordinate_set.x.into_inner() + 1.0) * 0.5 * CONSTS.cell_array_width as f32)
                     as usize,
@@ -283,6 +299,17 @@ impl Node for IntColorNodes {
                     * CONSTS.cell_array_height as f32) as usize,
                 state.coordinate_set.t as usize,
             ),
+            Decompose { r, g, b } => ByteColor {
+                r: r.compute(state).into_inner(),
+                g: g.compute(state).into_inner(),
+                b: b.compute(state).into_inner(),
+            },
+            FromFloatColor { child } => child.compute(state).into(),
+            FromBitColor { child } => child.compute(state).into(),
+            ModifyState { child, child_state } => child.compute(UpdateState {
+                coordinate_set: child_state.compute(state),
+                ..state
+            }),
             IfElse {
                 predicate,
                 child_a,
