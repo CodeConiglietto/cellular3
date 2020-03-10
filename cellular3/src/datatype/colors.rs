@@ -2,12 +2,19 @@ use mutagen::{Generatable, Mutatable};
 use palette::rgb::Rgb;
 use rand::prelude::*;
 
-use crate::datatype::continuous::*;
+use crate::datatype::{continuous::*, discrete::*};
 
 pub type FloatColor = ggez::graphics::Color;
 
 pub fn get_average(c: FloatColor) -> f32 {
     (c.r + c.b + c.g) / 3.0
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NibbleColor {
+    pub r: Nibble,
+    pub g: Nibble,
+    pub b: Nibble,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -17,12 +24,12 @@ pub struct ByteColor {
     pub b: u8,
 }
 
-impl From<FloatColor> for ByteColor{
+impl From<FloatColor> for NibbleColor{
     fn from(other: FloatColor) -> Self {
         Self{
-            r: (other.r * 255.0) as u8,
-            g: (other.g * 255.0) as u8,
-            b: (other.b * 255.0) as u8,
+            r: Nibble::new((other.r * 255.0) as u8),
+            g: Nibble::new((other.g * 255.0) as u8),
+            b: Nibble::new((other.b * 255.0) as u8),
         }
     }
 }
@@ -49,6 +56,16 @@ impl From<image::Rgb<u8>> for ByteColor {
             r: c.0[0],
             g: c.0[1],
             b: c.0[2],
+        }
+    }
+}
+
+impl From<FloatColor> for ByteColor{
+    fn from(other: FloatColor) -> Self {
+        Self{
+            r: (other.r * 255.0) as u8,
+            g: (other.g * 255.0) as u8,
+            b: (other.b * 255.0) as u8,
         }
     }
 }
@@ -303,5 +320,13 @@ impl Mutatable for BitColor {
         }
 
         *self = Self::from_components(new_color);
+    }
+}
+
+impl From<ByteColor> for BitColor{
+    fn from(other: ByteColor) -> Self {
+        Self::from_components(
+            [other.r > 127, other.g > 127, other.b > 127]
+        )
     }
 }

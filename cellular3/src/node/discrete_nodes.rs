@@ -32,7 +32,7 @@ pub enum BooleanNodes {
     #[mutagen(gen_weight = leaf_node_weight)]
     Constant { child: Boolean },
     #[mutagen(mut_reroll = 0.9)]
-    // #[mutagen(gen_weight = leaf_node_weight)]
+    #[mutagen(gen_weight = leaf_node_weight)]
     // Random,
     #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
@@ -44,6 +44,11 @@ pub enum BooleanNodes {
         predicate: Box<BooleanNodes>,
         child_a: Box<Self>,
         child_b: Box<Self>,
+    },
+    #[mutagen(gen_weight = branch_node_weight)]
+    ByteEquals {
+        child_a: Box<ByteNodes>,
+        child_b: Box<ByteNodes>,
     },
 }
 
@@ -86,6 +91,7 @@ impl Node for BooleanNodes {
                     child_b.compute(state)
                 }
             }
+            ByteEquals {child_a, child_b} => Boolean { value: child_a.compute(state).into_inner() == child_b.compute(state).into_inner()},
         }
     }
 }

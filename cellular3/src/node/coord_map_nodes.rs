@@ -4,6 +4,7 @@ use crate::{
     updatestate::{CoordinateSet, UpdateState},
 };
 use mutagen::{Generatable, Mutatable};
+use nalgebra::{geometry::Rotation2, geometry::Point2};
 
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
@@ -19,6 +20,9 @@ pub enum CoordMapNodes {
         x: Box<SNFloatNodes>,
         y: Box<SNFloatNodes>,
     },
+
+    #[mutagen(gen_weight = pipe_node_weight)]
+    Rotation { angle: Box<AngleNodes> },
 
     #[mutagen(gen_weight = leaf_node_weight)]
     ToPolar,
@@ -50,6 +54,15 @@ impl Node for CoordMapNodes {
                 y.compute(state),
                 SNFloat::new(1.0),
             ),
+            Rotation { angle } => { 
+                let new_pos = Rotation2::new(angle.compute(state).into_inner()).transform_point(&Point2::new(state.coordinate_set.x.into_inner(), state.coordinate_set.y.into_inner()));
+
+                CoordinateSet {
+                    x: SNFloat::new(0.0).circular_add_f32(new_pos.x), 
+                    y: SNFloat::new(0.0).circular_add_f32(new_pos.y), 
+                    t: state.coordinate_set.t
+                }
+            },
             ToPolar => {
                 let state_x = state.coordinate_set.x.into_inner();
                 let state_y = state.coordinate_set.y.into_inner();

@@ -15,6 +15,7 @@
         "lerped",
         "lerping",
         "mutatable",
+        "nalgebra",
         "ndarray",
         "neighbour",
         "neighbourhood",

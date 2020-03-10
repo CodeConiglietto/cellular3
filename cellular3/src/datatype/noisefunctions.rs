@@ -2,7 +2,7 @@ use crate::datatype::continuous::UNFloat;
 use mutagen::{Generatable, Mutatable};
 use noise::{
     BasicMulti, Billow, Checkerboard, Fbm, HybridMulti, OpenSimplex, RangeFunction, RidgedMulti,
-    SuperSimplex, Value, Worley,
+    SuperSimplex, Value, Worley, Seedable,
 };
 use rand::prelude::*;
 
@@ -19,7 +19,7 @@ impl Generatable for BasicMultiFractalNoise {
             x_scale: UNFloat::generate_rng(rng, state),
             y_scale: UNFloat::generate_rng(rng, state),
             t_scale: UNFloat::generate_rng(rng, state),
-            noise: BasicMulti::new(),
+            noise: BasicMulti::new().set_seed(rng.gen::<u32>()),
         }
     }
 }
@@ -36,7 +36,7 @@ impl Mutatable for BasicMultiFractalNoise {
                 self.t_scale = UNFloat::generate_rng(rng, state);
             }
             3 => {
-                self.noise = BasicMulti::new();
+                self.noise = BasicMulti::new().set_seed(rng.gen::<u32>());
             }
             _ => panic!(),
         }
@@ -56,7 +56,7 @@ impl Generatable for BillowNoise {
             x_scale: UNFloat::generate_rng(rng, state),
             y_scale: UNFloat::generate_rng(rng, state),
             t_scale: UNFloat::generate_rng(rng, state),
-            noise: Billow::new(),
+            noise: Billow::new().set_seed(rng.gen::<u32>()),
         }
     }
 }
@@ -73,7 +73,7 @@ impl Mutatable for BillowNoise {
                 self.t_scale = UNFloat::generate_rng(rng, state);
             }
             3 => {
-                self.noise = Billow::new();
+                self.noise = Billow::new().set_seed(rng.gen::<u32>());
             }
             _ => panic!(),
         }
@@ -133,7 +133,7 @@ impl Generatable for FractalBrownianNoise {
             x_scale: UNFloat::generate_rng(rng, state),
             y_scale: UNFloat::generate_rng(rng, state),
             t_scale: UNFloat::generate_rng(rng, state),
-            noise: Fbm::new(),
+            noise: Fbm::new().set_seed(rng.gen::<u32>()),
         }
     }
 }
@@ -150,7 +150,7 @@ impl Mutatable for FractalBrownianNoise {
                 self.t_scale = UNFloat::generate_rng(rng, state);
             }
             3 => {
-                self.noise = Fbm::new();
+                self.noise = Fbm::new().set_seed(rng.gen::<u32>());
             }
             _ => panic!(),
         }
@@ -170,7 +170,7 @@ impl Generatable for HybridMultiFractalNoise {
             x_scale: UNFloat::generate_rng(rng, state),
             y_scale: UNFloat::generate_rng(rng, state),
             t_scale: UNFloat::generate_rng(rng, state),
-            noise: HybridMulti::new(),
+            noise: HybridMulti::new().set_seed(rng.gen::<u32>()),
         }
     }
 }
@@ -187,7 +187,7 @@ impl Mutatable for HybridMultiFractalNoise {
                 self.t_scale = UNFloat::generate_rng(rng, state);
             }
             3 => {
-                self.noise = HybridMulti::new();
+                self.noise = HybridMulti::new().set_seed(rng.gen::<u32>());
             }
             _ => panic!(),
         }
@@ -207,7 +207,7 @@ impl Generatable for OpenSimplexNoise {
             x_scale: UNFloat::generate_rng(rng, state),
             y_scale: UNFloat::generate_rng(rng, state),
             t_scale: UNFloat::generate_rng(rng, state),
-            noise: OpenSimplex::new(),
+            noise: OpenSimplex::new().set_seed(rng.gen::<u32>()),
         }
     }
 }
@@ -224,7 +224,7 @@ impl Mutatable for OpenSimplexNoise {
                 self.t_scale = UNFloat::generate_rng(rng, state);
             }
             3 => {
-                self.noise = OpenSimplex::new();
+                self.noise = OpenSimplex::new().set_seed(rng.gen::<u32>());
             }
             _ => panic!(),
         }
@@ -244,7 +244,7 @@ impl Generatable for RidgedMultiFractalNoise {
             x_scale: UNFloat::generate_rng(rng, state),
             y_scale: UNFloat::generate_rng(rng, state),
             t_scale: UNFloat::generate_rng(rng, state),
-            noise: RidgedMulti::new(),
+            noise: RidgedMulti::new().set_seed(rng.gen::<u32>()),
         }
     }
 }
@@ -264,7 +264,7 @@ impl Mutatable for RidgedMultiFractalNoise {
                 self.noise.attenuation = rng.gen_range(0.0, 8.0);
             }
             4 => {
-                self.noise = RidgedMulti::new();
+                self.noise = RidgedMulti::new().set_seed(rng.gen::<u32>());
             }
             _ => panic!(),
         }
@@ -284,7 +284,7 @@ impl Generatable for SuperSimplexNoise {
             x_scale: UNFloat::generate_rng(rng, state),
             y_scale: UNFloat::generate_rng(rng, state),
             t_scale: UNFloat::generate_rng(rng, state),
-            noise: SuperSimplex::new(),
+            noise: SuperSimplex::new().set_seed(rng.gen::<u32>()),
         }
     }
 }
@@ -301,7 +301,7 @@ impl Mutatable for SuperSimplexNoise {
                 self.t_scale = UNFloat::generate_rng(rng, state);
             }
             3 => {
-                self.noise = SuperSimplex::new();
+                self.noise = SuperSimplex::new().set_seed(rng.gen::<u32>());
             }
             _ => panic!(),
         }
@@ -321,7 +321,7 @@ impl Generatable for ValueNoise {
             x_scale: UNFloat::generate_rng(rng, state),
             y_scale: UNFloat::generate_rng(rng, state),
             t_scale: UNFloat::generate_rng(rng, state),
-            noise: Value::new(),
+            noise: Value::new().set_seed(rng.gen::<u32>()),
         }
     }
 }
@@ -338,7 +338,7 @@ impl Mutatable for ValueNoise {
                 self.t_scale = UNFloat::generate_rng(rng, state);
             }
             3 => {
-                self.noise = Value::new();
+                self.noise = Value::new().set_seed(rng.gen::<u32>());
             }
             _ => panic!(),
         }
@@ -369,7 +369,7 @@ impl Generatable for WorleyNoise {
                     3 => RangeFunction::Chebyshev,
                     4 => RangeFunction::Quadratic,
                     _ => panic!(),
-                }),
+                }).set_seed(rng.gen::<u32>()),
         }
     }
 }
@@ -401,6 +401,19 @@ impl Mutatable for WorleyNoise {
                     4 => RangeFunction::Quadratic,
                     _ => panic!(),
                 });
+            }
+            6 => {
+                self.noise = Worley::new()
+                .enable_range(rng.gen())
+                .set_displacement(rng.gen())
+                .set_range_function(match rng.gen_range(0, 5) {
+                    0 => RangeFunction::Euclidean,
+                    1 => RangeFunction::EuclideanSquared,
+                    2 => RangeFunction::Manhattan,
+                    3 => RangeFunction::Chebyshev,
+                    4 => RangeFunction::Quadratic,
+                    _ => panic!(),
+                }).set_seed(rng.gen::<u32>());
             }
             _ => panic!(),
         };

@@ -90,8 +90,14 @@ impl SNFloat {
     }
 
     pub fn circular_add(self, other: SNFloat) -> SNFloat {
-        let total = self.into_inner() + other.into_inner();
-        SNFloat::new(total - total.floor())
+        self.circular_add_f32(other.into_inner())
+    }
+
+    //TODO: There is a bug here, the circular add will probably reset to 0 when overflowed instead of -1 or 1
+    pub fn circular_add_f32(self, other: f32) -> SNFloat {
+        let total = self.into_inner() + other;
+        let sign = total.signum();
+        SNFloat::new((total.abs() - total.abs().floor()) * sign)
     }
 }
 

@@ -26,6 +26,8 @@ pub struct Constants {
     pub cell_array_history_length: usize,
     pub cell_array_lerp_length: usize,
 
+    pub lerp_aggressiveness: f32,
+
     pub noise_x_scale_factor: f64,
     pub noise_y_scale_factor: f64,
     pub noise_t_scale_factor: f64,
@@ -45,6 +47,10 @@ pub struct Constants {
     //primitive consts
     pub byte_max_value: u64,
     pub byte_possible_values: u64,
+    
+    //primitive consts
+    pub nibble_max_value: u8,
+    pub nibble_possible_values: u8,
 
     //neighbour consts
     pub max_neighbour_array_count: usize, //Use this for array indexes as it counts zero

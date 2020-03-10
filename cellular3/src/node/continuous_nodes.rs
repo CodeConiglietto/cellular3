@@ -11,6 +11,9 @@ use mutagen::{Generatable, Mutatable};
 #[derive(Generatable, Mutatable, Debug)]
 #[mutagen(mut_reroll = 0.1)]
 pub enum AngleNodes {
+    #[mutagen(gen_weight = leaf_node_weight)]
+    FromGametic,
+
     #[mutagen(gen_weight = pipe_node_weight)]
     ArcSin { theta: Box<SNFloatNodes> },
 
@@ -21,7 +24,9 @@ pub enum AngleNodes {
     // #[mutagen(mut_reroll = 0.9)]
     // Random,
     #[mutagen(gen_weight = leaf_node_weight)]
-    Constant { value: Angle },
+    FromCoordinate,
+    // #[mutagen(gen_weight = leaf_node_weight)]
+    // Constant { value: Angle },
 
     #[mutagen(gen_weight = pipe_node_weight)]
     FromSNFloat { child: Box<SNFloatNodes> },
@@ -49,10 +54,12 @@ impl Node for AngleNodes {
         use AngleNodes::*;
 
         match self {
+            FromGametic => Angle::new(state.coordinate_set.t * 0.1),
             ArcSin { theta } => Angle::new(f32::asin(theta.compute(state).into_inner())),
             ArcCos { theta } => Angle::new(f32::acos(theta.compute(state).into_inner())),
+            FromCoordinate => Angle::new(f32::atan2(-state.coordinate_set.x.into_inner(), state.coordinate_set.y.into_inner())),
             // Random => Angle::generate(),
-            Constant { value } => *value,
+            // Constant { value } => *value,
             FromSNFloat { child } => child.compute(state).to_angle(),
             FromUNFloat { child } => child.compute(state).to_angle(),
             ModifyState { child, child_state } => child.compute(UpdateState {
@@ -103,11 +110,17 @@ pub enum SNFloatNodes {
     #[mutagen(gen_weight = pipe_node_weight)]
     Abs { child: Box<SNFloatNodes> },
 
+    #[mutagen(gen_weight = pipe_node_weight)]
+    Invert { child: Box<SNFloatNodes> },
+
     #[mutagen(gen_weight = leaf_node_weight)]
     XRatio,
 
     #[mutagen(gen_weight = leaf_node_weight)]
     YRatio,
+
+    #[mutagen(gen_weight = leaf_node_weight)]
+    FromGametic,
 
     #[mutagen(gen_weight = leaf_node_weight)]
     NoiseFunction { child: Box<NoiseNodes> },
@@ -142,8 +155,10 @@ impl Node for SNFloatNodes {
                 child_a.compute(state).into_inner() * child_b.compute(state).into_inner(),
             ),
             Abs { child } => SNFloat::new(child.compute(state).into_inner().abs()),
+            Invert { child } => SNFloat::new(child.compute(state).into_inner() * -1.0),
             XRatio => state.coordinate_set.x,
             YRatio => state.coordinate_set.y,
+            FromGametic => SNFloat::new((state.coordinate_set.t - state.coordinate_set.t.floor()) * 2.0 - 1.0),
             ModifyState { child, child_state } => child.compute(UpdateState {
                 coordinate_set: child_state.compute(state),
                 ..state

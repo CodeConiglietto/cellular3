@@ -305,7 +305,8 @@ impl EventHandler for MyGame {
             let older_color = history.get(x, y, usize::max(current_t, 1) - 1);
 
             //TODO this should be a random neighbour
-            let local_color = history.get(x, y, current_t);
+            let local_offset = (thread_rng().gen_range(-1, 2), thread_rng().gen_range(-1, 2));
+            let local_color = history.get((x as i32 + local_offset.0).max(0).min(CONSTS.cell_array_width as i32 - 1) as usize, (y as i32 + local_offset.1).min(CONSTS.cell_array_height as i32 - 1) as usize, current_t);
             let global_color = history.get(
                 random::<usize>() % CONSTS.cell_array_width,
                 random::<usize>() % CONSTS.cell_array_height,
@@ -402,7 +403,7 @@ impl EventHandler for MyGame {
             let alpha = 1.0
                 - ((i as f32 - lerp_value) / (lerp_len - 1) as f32)
                     .max(0.0)
-                    .powf(4.0);
+                    .powf(CONSTS.lerp_aggressiveness);
 
             let hist_len = self.history.history_steps.len();
             let history_index = (self.current_t + i + hist_len - lerp_len) % hist_len;

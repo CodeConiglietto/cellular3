@@ -172,6 +172,11 @@ pub enum BitColorNodes {
         b: Box<BooleanNodes>,
     },
 
+    #[mutagen(gen_weight = leaf_node_weight)]
+    FromImage { image: Image },
+    #[mutagen(gen_weight = leaf_node_weight)]
+    FromCellArray,
+
     #[mutagen(gen_weight = pipe_node_weight)]
     FromUNFloat { child: Box<UNFloatNodes> },
 
@@ -217,6 +222,19 @@ impl Node for BitColorNodes {
                 g.compute(state).into_inner(),
                 b.compute(state).into_inner(),
             ]),
+            FromImage { image } => image.get_pixel_normalised(
+                state.coordinate_set.x,
+                state.coordinate_set.y,
+                state.coordinate_set.t,
+            ).into(),
+            FromCellArray => state.history.get(
+                ((state.coordinate_set.x.into_inner() + 1.0) * 0.5 * CONSTS.cell_array_width as f32)
+                    as usize,
+                ((state.coordinate_set.y.into_inner() + 1.0)
+                    * 0.5
+                    * CONSTS.cell_array_height as f32) as usize,
+                state.coordinate_set.t as usize,
+            ).into(),
             FromUNFloat { child } => BitColor::from_index(
                 (child.compute(state).into_inner() * 0.99 * (CONSTS.max_colors) as f32) as usize,
             ),
