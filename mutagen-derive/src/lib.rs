@@ -283,6 +283,104 @@ fn mutatable_fields(fields: &[&Field], path: &str, _span: Span) -> Result<TokenS
     )
 }
 
+#[proc_macro_derive(Updatable, attributes(mutagen))]
+pub fn derive_updatable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as syn::DeriveInput);
+    let span = input.span();
+
+    let body = match &input.data {
+        Data::Struct(s) => updatable_struct(&input.ident, s, &input.attrs, span),
+        Data::Enum(e) => updatable_enum(&input.ident, e, &input.attrs, span),
+        Data::Union(_) => panic!("#[derive(Updatable)] is not implemented for unions"),
+    }
+    .unwrap_or_else(|e| e.to_compile_error());
+
+    let ident = input.ident;
+
+    let output: TokenStream2 = quote! {
+        impl ::mutagen::Updatable for #ident {
+            fn update(&mut self, state: ::mutagen::State) {
+                #body
+            }
+        }
+    };
+
+    proc_macro::TokenStream::from(output)
+}
+
+fn updatable_struct(
+    ident: &Ident,
+    s: &DataStruct,
+    _attrs: &[Attribute],
+    _span: Span,
+) -> Result<TokenStream2> {
+    let bindings = fields_bindings(&s.fields);
+    let body = updatable_fields(
+        &flatten_fields(&s.fields),
+        &ident.to_string(),
+        s.fields.span(),
+    )?;
+
+    Ok(quote! {
+        let #ident #bindings = self;
+        #body
+    })
+}
+
+fn updatable_enum(
+    enum_ident: &Ident,
+    e: &DataEnum,
+    _attrs: &[Attribute],
+    _span: Span,
+) -> Result<TokenStream2> {
+    if e.variants.is_empty() {
+        panic!("Cannot derive Mutatable for enum with no variants");
+    }
+
+    let variants: Vec<_> = e
+        .variants
+        .iter()
+        .map(|variant| {
+            let ident = &variant.ident;
+            let bindings = fields_bindings(&variant.fields);
+            let fields_body = updatable_fields(
+                &flatten_fields(&variant.fields),
+                &format!("{}::{}", &enum_ident, &variant.ident),
+                variant.fields.span(),
+            )?;
+
+            let out: TokenStream2 = quote! {
+                #enum_ident::#ident #bindings => { #fields_body }
+            };
+
+            Ok(out)
+        })
+        .collect::<Result<_>>()?;
+
+    Ok(quote! {
+        match self {
+            #( #variants )*
+        }
+    })
+}
+
+fn updatable_fields(fields: &[&Field], _path: &str, _span: Span) -> Result<TokenStream2> {
+    if fields.is_empty() {
+        return Ok(TokenStream2::new());
+    }
+
+    Ok(fields
+        .iter()
+        .enumerate()
+        .map(|(i, field)| {
+            let ident = field_ident(field, i);
+            quote! {
+                ::mutagen::Updatable::update(#ident, state.deepen());
+            }
+        })
+        .collect())
+}
+
 fn roll<T, Wf, Bf>(choices: &[T], weight_fn: Wf, body_fn: Bf, err: &str) -> Result<TokenStream2>
 where
     Wf: Fn(&T) -> Result<Value>,

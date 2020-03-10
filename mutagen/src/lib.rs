@@ -165,8 +165,6 @@ impl Generatable for () {
 
 /// A trait denoting that the type may be randomly mutated
 ///
-/// This trait is already implemented for all types that `[rand::distributions::Standard]` applies to,
-///
 /// # Derive
 /// When derived on a struct, it will randomly pick a field to mutate and call that field's [`mutate()`](crate::Mutatable::mutate)
 ///
@@ -194,12 +192,31 @@ impl Mutatable for () {
     fn mutate_rng<R: Rng + ?Sized>(&mut self, _rng: &mut R, _state: State) {}
 }
 
-/*
+/// A trait denoting that the type may be updated.
+///
+/// # Derive
+/// When derived on a struct, it will call each field's [`update()`](crate::Updatable::update)
+///
+/// When derived on an enum, it will call the current variant's [`update()`](crate::Updatable::update)
+pub trait Updatable {
+    fn update(&mut self, state: State);
+}
+
+impl<T: Updatable> Updatable for Box<T> {
+    fn update(&mut self, state: State) {
+        self.deref_mut().update(state)
+    }
+}
+
+impl Updatable for () {
+    fn update(&mut self, _state: State) {}
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
-    #[derive(Generatable, Mutatable)]
+    #[derive(Generatable, Mutatable, Updatable)]
     struct Foo {
         #[mutagen(mut_weight = 10.0)]
         bar: Bar,
@@ -208,10 +225,10 @@ mod test {
         bap: Bap,
     }
 
-    #[derive(Generatable, Mutatable)]
+    #[derive(Generatable, Mutatable, Updatable)]
     struct Bar;
 
-    #[derive(Generatable, Mutatable)]
+    #[derive(Generatable, Mutatable, Updatable)]
     #[mutagen(mut_reroll = 0.123)]
     enum Baz {
         #[mutagen(gen_weight = 10.0, mut_reroll = 1.0)]
@@ -223,10 +240,9 @@ mod test {
         },
     }
 
-    #[derive(Generatable, Mutatable)]
+    #[derive(Generatable, Mutatable, Updatable)]
     struct Bax(Bar);
 
-    #[derive(Generatable, Mutatable)]
+    #[derive(Generatable, Mutatable, Updatable)]
     struct Bap(Bar, Bar);
 }
-*/
