@@ -69,7 +69,7 @@ where
         }
     }
 
-    pub fn get_next(&self) -> T {
+    pub fn _get_next(&self) -> T {
         self.receiver.recv().unwrap()
     }
 

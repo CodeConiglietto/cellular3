@@ -1,7 +1,8 @@
 use crate::{
     datatype::{colors::*, continuous::*},
     node::{
-        continuous_nodes::*, coord_map_nodes::*, color_nodes::*, discrete_nodes::*, mutagen_functions::*, Node,
+        color_nodes::*, continuous_nodes::*, coord_map_nodes::*, discrete_nodes::*,
+        mutagen_functions::*, Node,
     },
     updatestate::UpdateState,
 };
@@ -103,7 +104,6 @@ pub enum ColorBlendNodes {
     //     color_b: Box<FloatColorNodes>,
     //     value: Box<UNFloatNodes>,
     // },
-
     #[mutagen(gen_weight = branch_node_weight)]
     ModifyState {
         child: Box<ColorBlendNodes>,
@@ -150,42 +150,40 @@ impl Node for ColorBlendNodes {
                     color_b.compute(state)
                 }
             }
-            Overlay {color_a, color_b} => 
-            {
+            Overlay { color_a, color_b } => {
                 let a_result = color_a.compute(state);
                 let b_result = color_b.compute(state);
 
                 FloatColor {
                     r: if a_result.r < 0.5 {
-                        (2.0*a_result.r*b_result.r).max(1.0)
-                    }else{
+                        (2.0 * a_result.r * b_result.r).max(1.0)
+                    } else {
                         1.0 - (2.0 * ((1.0 - a_result.r) * (1.0 - b_result.r)))
                     },
                     g: if a_result.g < 0.5 {
-                        (2.0*a_result.g*b_result.g).max(1.0)
-                    }else{
+                        (2.0 * a_result.g * b_result.g).max(1.0)
+                    } else {
                         1.0 - (2.0 * ((1.0 - a_result.g) * (1.0 - b_result.g)))
                     },
                     b: if a_result.b < 0.5 {
-                        (2.0*a_result.b*b_result.b).max(1.0)
-                    }else{
+                        (2.0 * a_result.b * b_result.b).max(1.0)
+                    } else {
                         1.0 - (2.0 * ((1.0 - a_result.b) * (1.0 - b_result.b)))
                     },
                     a: 1.0,
                 }
-            },
-            ScreenDodge {color_a, color_b} => 
-            {
+            }
+            ScreenDodge { color_a, color_b } => {
                 let result_a = color_a.compute(state);
                 let result_b = color_b.compute(state);
 
-                FloatColor{
+                FloatColor {
                     r: 1.0 - ((1.0 - result_a.r) * (1.0 - result_b.r)),
                     g: 1.0 - ((1.0 - result_a.g) * (1.0 - result_b.g)),
                     b: 1.0 - ((1.0 - result_a.b) * (1.0 - result_b.b)),
                     a: 1.0,
                 }
-            },
+            }
             // ColorDodge {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
             // LinearDodge {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
             // Multiply {color_a, color_b, value} => {if UNFloat::generate().into_inner() < value.compute(state).into_inner() {color_a.compute(state)}else{color_b.compute(state)}},
@@ -200,7 +198,17 @@ impl Node for ColorBlendNodes {
                 coordinate_set: child_state.compute(state),
                 ..state
             }),
-            IfElse { predicate, child_a, child_b } => if predicate.compute(state).into_inner() { child_a.compute(state) } else { child_b.compute(state) }
+            IfElse {
+                predicate,
+                child_a,
+                child_b,
+            } => {
+                if predicate.compute(state).into_inner() {
+                    child_a.compute(state)
+                } else {
+                    child_b.compute(state)
+                }
+            }
         }
     }
 }

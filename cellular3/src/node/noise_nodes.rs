@@ -47,105 +47,159 @@ impl Node for NoiseNodes {
         use NoiseNodes::*;
 
         match self {
-            BasicMultiFractalNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x.into_inner() as f64
-                    * noise.x_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_x_scale_factor,
-                state.coordinate_set.y.into_inner() as f64
-                    * noise.y_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_y_scale_factor,
-                state.coordinate_set.t as f64
-                    * noise.t_scale.into_inner() as f64
-                    * CONSTS.noise_t_scale_factor,
-            ]).min(1.0).max(0.0) as f32),
-            BillowNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x.into_inner() as f64
-                    * noise.x_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_x_scale_factor,
-                state.coordinate_set.y.into_inner() as f64
-                    * noise.y_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_y_scale_factor,
-                state.coordinate_set.t as f64
-                    * noise.t_scale.into_inner() as f64
-                    * CONSTS.noise_t_scale_factor,
-            ]).min(1.0).max(0.0) as f32),
-            CheckerboardNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x.into_inner() as f64
-                    * noise.x_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_x_scale_factor,
-                state.coordinate_set.y.into_inner() as f64
-                    * noise.y_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_y_scale_factor,
-                state.coordinate_set.t as f64
-                    * noise.t_scale.into_inner() as f64
-                    * CONSTS.noise_t_scale_factor,
-            ]).min(1.0).max(0.0) as f32),
-            FractalBrownianNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x.into_inner() as f64
-                    * noise.x_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_x_scale_factor,
-                state.coordinate_set.y.into_inner() as f64
-                    * noise.y_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_y_scale_factor,
-                state.coordinate_set.t as f64
-                    * noise.t_scale.into_inner() as f64
-                    * CONSTS.noise_t_scale_factor,
-            ]).min(1.0).max(0.0) as f32),
-            HybridMultiFractalNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x.into_inner() as f64
-                    * noise.x_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_x_scale_factor,
-                state.coordinate_set.y.into_inner() as f64
-                    * noise.y_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_y_scale_factor,
-                state.coordinate_set.t as f64
-                    * noise.t_scale.into_inner() as f64
-                    * CONSTS.noise_t_scale_factor,
-            ]).min(1.0).max(0.0) as f32),
-            OpenSimplexNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x.into_inner() as f64
-                    * noise.x_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_x_scale_factor,
-                state.coordinate_set.y.into_inner() as f64
-                    * noise.y_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_y_scale_factor,
-                state.coordinate_set.t as f64
-                    * noise.t_scale.into_inner() as f64
-                    * CONSTS.noise_t_scale_factor,
-            ]).min(1.0).max(0.0) as f32),
-            RidgedMultiFractalNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x.into_inner() as f64
-                    * noise.x_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_x_scale_factor,
-                state.coordinate_set.y.into_inner() as f64
-                    * noise.y_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_y_scale_factor,
-                state.coordinate_set.t as f64
-                    * noise.t_scale.into_inner() as f64
-                    * CONSTS.noise_t_scale_factor,
-            ]).min(1.0).max(0.0) as f32),
-            SuperSimplexNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x.into_inner() as f64
-                    * noise.x_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_x_scale_factor,
-                state.coordinate_set.y.into_inner() as f64
-                    * noise.y_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_y_scale_factor,
-                state.coordinate_set.t as f64
-                    * noise.t_scale.into_inner() as f64
-                    * CONSTS.noise_t_scale_factor,
-            ]).min(1.0).max(0.0) as f32),
-            ValueNoise { noise } => SNFloat::new(noise.noise.get([
-                state.coordinate_set.x.into_inner() as f64
-                    * noise.x_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_x_scale_factor,
-                state.coordinate_set.y.into_inner() as f64
-                    * noise.y_scale.into_inner().powf(2.0) as f64
-                    * CONSTS.noise_y_scale_factor,
-                state.coordinate_set.t as f64
-                    * noise.t_scale.into_inner() as f64
-                    * CONSTS.noise_t_scale_factor,
-            ]).min(1.0).max(0.0) as f32),
+            BasicMultiFractalNoise { noise } => SNFloat::new(
+                noise
+                    .noise
+                    .get([
+                        state.coordinate_set.x.into_inner() as f64
+                            * noise.x_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_x_scale_factor,
+                        state.coordinate_set.y.into_inner() as f64
+                            * noise.y_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_y_scale_factor,
+                        state.coordinate_set.t as f64
+                            * noise.t_scale.into_inner() as f64
+                            * CONSTS.noise_t_scale_factor,
+                    ])
+                    .min(1.0)
+                    .max(0.0) as f32,
+            ),
+            BillowNoise { noise } => SNFloat::new(
+                noise
+                    .noise
+                    .get([
+                        state.coordinate_set.x.into_inner() as f64
+                            * noise.x_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_x_scale_factor,
+                        state.coordinate_set.y.into_inner() as f64
+                            * noise.y_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_y_scale_factor,
+                        state.coordinate_set.t as f64
+                            * noise.t_scale.into_inner() as f64
+                            * CONSTS.noise_t_scale_factor,
+                    ])
+                    .min(1.0)
+                    .max(0.0) as f32,
+            ),
+            CheckerboardNoise { noise } => SNFloat::new(
+                noise
+                    .noise
+                    .get([
+                        state.coordinate_set.x.into_inner() as f64
+                            * noise.x_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_x_scale_factor,
+                        state.coordinate_set.y.into_inner() as f64
+                            * noise.y_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_y_scale_factor,
+                        state.coordinate_set.t as f64
+                            * noise.t_scale.into_inner() as f64
+                            * CONSTS.noise_t_scale_factor,
+                    ])
+                    .min(1.0)
+                    .max(0.0) as f32,
+            ),
+            FractalBrownianNoise { noise } => SNFloat::new(
+                noise
+                    .noise
+                    .get([
+                        state.coordinate_set.x.into_inner() as f64
+                            * noise.x_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_x_scale_factor,
+                        state.coordinate_set.y.into_inner() as f64
+                            * noise.y_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_y_scale_factor,
+                        state.coordinate_set.t as f64
+                            * noise.t_scale.into_inner() as f64
+                            * CONSTS.noise_t_scale_factor,
+                    ])
+                    .min(1.0)
+                    .max(0.0) as f32,
+            ),
+            HybridMultiFractalNoise { noise } => SNFloat::new(
+                noise
+                    .noise
+                    .get([
+                        state.coordinate_set.x.into_inner() as f64
+                            * noise.x_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_x_scale_factor,
+                        state.coordinate_set.y.into_inner() as f64
+                            * noise.y_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_y_scale_factor,
+                        state.coordinate_set.t as f64
+                            * noise.t_scale.into_inner() as f64
+                            * CONSTS.noise_t_scale_factor,
+                    ])
+                    .min(1.0)
+                    .max(0.0) as f32,
+            ),
+            OpenSimplexNoise { noise } => SNFloat::new(
+                noise
+                    .noise
+                    .get([
+                        state.coordinate_set.x.into_inner() as f64
+                            * noise.x_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_x_scale_factor,
+                        state.coordinate_set.y.into_inner() as f64
+                            * noise.y_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_y_scale_factor,
+                        state.coordinate_set.t as f64
+                            * noise.t_scale.into_inner() as f64
+                            * CONSTS.noise_t_scale_factor,
+                    ])
+                    .min(1.0)
+                    .max(0.0) as f32,
+            ),
+            RidgedMultiFractalNoise { noise } => SNFloat::new(
+                noise
+                    .noise
+                    .get([
+                        state.coordinate_set.x.into_inner() as f64
+                            * noise.x_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_x_scale_factor,
+                        state.coordinate_set.y.into_inner() as f64
+                            * noise.y_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_y_scale_factor,
+                        state.coordinate_set.t as f64
+                            * noise.t_scale.into_inner() as f64
+                            * CONSTS.noise_t_scale_factor,
+                    ])
+                    .min(1.0)
+                    .max(0.0) as f32,
+            ),
+            SuperSimplexNoise { noise } => SNFloat::new(
+                noise
+                    .noise
+                    .get([
+                        state.coordinate_set.x.into_inner() as f64
+                            * noise.x_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_x_scale_factor,
+                        state.coordinate_set.y.into_inner() as f64
+                            * noise.y_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_y_scale_factor,
+                        state.coordinate_set.t as f64
+                            * noise.t_scale.into_inner() as f64
+                            * CONSTS.noise_t_scale_factor,
+                    ])
+                    .min(1.0)
+                    .max(0.0) as f32,
+            ),
+            ValueNoise { noise } => SNFloat::new(
+                noise
+                    .noise
+                    .get([
+                        state.coordinate_set.x.into_inner() as f64
+                            * noise.x_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_x_scale_factor,
+                        state.coordinate_set.y.into_inner() as f64
+                            * noise.y_scale.into_inner().powf(2.0) as f64
+                            * CONSTS.noise_y_scale_factor,
+                        state.coordinate_set.t as f64
+                            * noise.t_scale.into_inner() as f64
+                            * CONSTS.noise_t_scale_factor,
+                    ])
+                    .min(1.0)
+                    .max(0.0) as f32,
+            ),
             WorleyNoise { noise } => SNFloat::new(
                 noise
                     .noise
@@ -159,7 +213,9 @@ impl Node for NoiseNodes {
                         state.coordinate_set.t as f64
                             * noise.t_scale.into_inner().powf(2.0) as f64
                             * CONSTS.noise_t_scale_factor,
-                    ]).min(1.0).max(0.0) as f32,
+                    ])
+                    .min(1.0)
+                    .max(0.0) as f32,
             ),
         }
     }

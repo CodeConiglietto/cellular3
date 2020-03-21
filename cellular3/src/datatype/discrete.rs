@@ -2,8 +2,8 @@ use std::num::Wrapping;
 
 use mutagen::{Generatable, Mutatable};
 
-use rand::prelude::*;
 use crate::constants::*;
+use rand::prelude::*;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Boolean {
@@ -71,7 +71,7 @@ impl Nibble {
 
 impl Generatable for Nibble {
     fn generate_rng<R: Rng + ?Sized>(rng: &mut R, _state: mutagen::State) -> Self {
-        Nibble { value: rng.gen() }
+        Nibble::new(rng.gen())
     }
 }
 
@@ -80,7 +80,6 @@ impl Mutatable for Nibble {
         *self = Self::generate_rng(rng, state);
     }
 }
-
 
 #[derive(Clone, Copy, Debug)]
 pub struct Byte {

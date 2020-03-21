@@ -37,6 +37,8 @@ pub struct Constants {
 
     pub activity_value_upper_bound: f64,
     pub activity_value_lower_bound: f64,
+    pub alpha_value_upper_bound: f64,
+    pub alpha_value_lower_bound: f64,
     pub local_similarity_upper_bound: f64,
     pub local_similarity_lower_bound: f64,
     pub global_similarity_upper_bound: f64,
@@ -47,7 +49,7 @@ pub struct Constants {
     //primitive consts
     pub byte_max_value: u64,
     pub byte_possible_values: u64,
-    
+
     //primitive consts
     pub nibble_max_value: u8,
     pub nibble_possible_values: u8,

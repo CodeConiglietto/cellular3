@@ -15,6 +15,7 @@ pub struct NibbleColor {
     pub r: Nibble,
     pub g: Nibble,
     pub b: Nibble,
+    pub a: Nibble,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,14 +23,16 @@ pub struct ByteColor {
     pub r: u8,
     pub g: u8,
     pub b: u8,
+    pub a: u8,
 }
 
-impl From<FloatColor> for NibbleColor{
+impl From<FloatColor> for NibbleColor {
     fn from(other: FloatColor) -> Self {
-        Self{
-            r: Nibble::new((other.r * 255.0) as u8),
-            g: Nibble::new((other.g * 255.0) as u8),
-            b: Nibble::new((other.b * 255.0) as u8),
+        Self {
+            r: Nibble::new((other.r * 16.0) as u8),
+            g: Nibble::new((other.g * 16.0) as u8),
+            b: Nibble::new((other.b * 16.0) as u8),
+            a: Nibble::new((other.a * 16.0) as u8),
         }
     }
 }
@@ -40,6 +43,7 @@ impl Generatable for ByteColor {
             r: rng.gen(),
             g: rng.gen(),
             b: rng.gen(),
+            a: rng.gen(),
         }
     }
 }
@@ -50,22 +54,24 @@ impl Mutatable for ByteColor {
     }
 }
 
-impl From<image::Rgb<u8>> for ByteColor {
-    fn from(c: image::Rgb<u8>) -> Self {
+impl From<image::Rgba<u8>> for ByteColor {
+    fn from(c: image::Rgba<u8>) -> Self {
         Self {
             r: c.0[0],
             g: c.0[1],
             b: c.0[2],
+            a: c.0[3],
         }
     }
 }
 
-impl From<FloatColor> for ByteColor{
+impl From<FloatColor> for ByteColor {
     fn from(other: FloatColor) -> Self {
-        Self{
+        Self {
             r: (other.r * 255.0) as u8,
             g: (other.g * 255.0) as u8,
             b: (other.b * 255.0) as u8,
+            a: (other.a * 255.0) as u8,
         }
     }
 }
@@ -76,7 +82,7 @@ impl From<ByteColor> for FloatColor {
             r: c.r as f32 / 256.0,
             g: c.g as f32 / 256.0,
             b: c.b as f32 / 256.0,
-            a: 1.0,
+            a: c.a as f32 / 256.0,
         }
     }
 }
@@ -94,12 +100,12 @@ impl From<BitColor> for FloatColor {
     }
 }
 
-pub fn float_color_from_pallette_rgb(rgb: Rgb) -> FloatColor {
+pub fn float_color_from_pallette_rgb(rgb: Rgb, alpha: f32) -> FloatColor {
     FloatColor {
         r: rgb.red as f32,
         g: rgb.green as f32,
         b: rgb.blue as f32,
-        a: 1.0,
+        a: alpha,
     }
 }
 
@@ -149,29 +155,33 @@ pub enum BitColor {
 impl BitColor {
     pub fn get_color(self) -> ByteColor {
         match self {
-            BitColor::Black => ByteColor { r: 0, g: 0, b: 0 },
-            BitColor::Red => ByteColor { r: 255, g: 0, b: 0 },
-            BitColor::Green => ByteColor { r: 0, g: 255, b: 0 },
-            BitColor::Blue => ByteColor { r: 0, g: 0, b: 255 },
+            BitColor::Black => ByteColor { r: 0, g: 0, b: 0, a: 255 },
+            BitColor::Red => ByteColor { r: 255, g: 0, b: 0, a: 255 },
+            BitColor::Green => ByteColor { r: 0, g: 255, b: 0, a: 255 },
+            BitColor::Blue => ByteColor { r: 0, g: 0, b: 255, a: 255 },
             BitColor::Cyan => ByteColor {
                 r: 0,
                 g: 255,
                 b: 255,
+                a: 255,
             },
             BitColor::Magenta => ByteColor {
                 r: 255,
                 g: 0,
                 b: 255,
+                a: 255,
             },
             BitColor::Yellow => ByteColor {
                 r: 255,
                 g: 255,
                 b: 0,
+                a: 255,
             },
             BitColor::White => ByteColor {
                 r: 255,
                 g: 255,
                 b: 255,
+                a: 255,
             },
         }
     }
@@ -323,10 +333,8 @@ impl Mutatable for BitColor {
     }
 }
 
-impl From<ByteColor> for BitColor{
+impl From<ByteColor> for BitColor {
     fn from(other: ByteColor) -> Self {
-        Self::from_components(
-            [other.r > 127, other.g > 127, other.b > 127]
-        )
+        Self::from_components([other.r > 127, other.g > 127, other.b > 127])
     }
 }

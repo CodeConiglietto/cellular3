@@ -24,8 +24,11 @@ use crate::{
         colors::{get_average, ByteColor},
         continuous::*,
         image::IMAGE_PRELOADER,
+        points::*,
     },
-    node::{color_nodes::FloatColorNodes, Node},
+    node::{
+        color_nodes::*, continuous_nodes::*, discrete_nodes::*, point_nodes::*, Node,
+    },
     opts::Opts,
     updatestate::*,
     util::{DeterministicRng, RNG_SEED},
@@ -93,6 +96,17 @@ fn setup_logging() {
 pub struct HistoryStep {
     cell_array: Array3<u8>,
     computed_texture: GgImage,
+
+    rotation: f32,
+    translation: SNPoint,
+    offset: SNPoint,
+    from_scale: SNPoint,
+    to_scale: SNPoint,
+
+    apply_rotation: bool,
+    apply_translation: bool,
+    apply_offset: bool,
+    apply_scale: bool,
 }
 
 #[derive(Debug)]
@@ -107,6 +121,15 @@ impl History {
                 .map(|_| HistoryStep {
                     cell_array: init_cell_array(array_width, array_height),
                     computed_texture: GgImage::solid(ctx, 1, WHITE).unwrap(),
+                    rotation: 0.0,
+                    translation: SNPoint::zero(),
+                    offset: SNPoint::zero(),
+                    from_scale: SNPoint::zero(),
+                    to_scale: SNPoint::zero(),
+                    apply_rotation: false,
+                    apply_translation: false,
+                    apply_offset: false,
+                    apply_scale: false,
                 })
                 .collect(),
         }
@@ -123,6 +146,7 @@ impl History {
             r: raw[0],
             g: raw[1],
             b: raw[2],
+            a: raw[3],
         }
     }
 }
@@ -142,6 +166,16 @@ struct MyGame {
     average_update_stat: UpdateStat,
     //The root node for the tree that computes the next screen state
     root_node: Box<FloatColorNodes>,
+    root_angle_node: Box<SNFloatNodes>,
+    root_translation_node: Box<SNPointNodes>,
+    root_offset_node: Box<SNPointNodes>,
+    root_from_scale_node: Box<SNPointNodes>,
+    root_to_scale_node: Box<SNPointNodes>,
+
+    apply_angle_node: Box<BooleanNodes>,
+    apply_translation_node: Box<BooleanNodes>,
+    apply_offset_node: Box<BooleanNodes>,
+    apply_scale_node: Box<BooleanNodes>,
 
     tree_dirty: bool,
     current_t: usize,
@@ -169,6 +203,15 @@ impl MyGame {
             next_history_step: HistoryStep {
                 cell_array: init_cell_array(CONSTS.cell_array_width, CONSTS.cell_array_height),
                 computed_texture: GgImage::solid(ctx, 1, WHITE).unwrap(),
+                rotation: 0.0,
+                translation: SNPoint::zero(),
+                offset: SNPoint::zero(),
+                from_scale: SNPoint::zero(),
+                to_scale: SNPoint::zero(),
+                apply_rotation: false,
+                apply_translation: false,
+                apply_offset: false,
+                apply_scale: false,
             },
             history: History::new(
                 ctx,
@@ -178,16 +221,67 @@ impl MyGame {
             ),
             rolling_update_stat_total: UpdateStat {
                 activity_value: 0.0,
+                alpha_value: 0.0,
                 local_similarity_value: 0.0,
                 global_similarity_value: 0.0,
             },
             average_update_stat: UpdateStat {
                 activity_value: 0.0,
+                alpha_value: 0.0,
                 local_similarity_value: 0.0,
                 global_similarity_value: 0.0,
             },
 
+            // root_node: Box::new(FloatColorNodes::HSVMandelbrot{
+            //     child_power: Box::new(UNFloatNodes::generate_rng(
+            //         &mut rng,
+            //         mutagen::State::default(),
+            //     )),
+            //     child_offset: Box::new(SNPointNodes::generate_rng(
+            //         &mut rng,
+            //         mutagen::State::default(),
+            //     ))
+            // }),
+
             root_node: Box::new(FloatColorNodes::generate_rng(
+                &mut rng,
+                mutagen::State::default(),
+            )),
+
+            root_angle_node: Box::new(SNFloatNodes::generate_rng(
+                &mut rng,
+                mutagen::State::default(),
+            )),
+            root_translation_node: Box::new(SNPointNodes::generate_rng(
+                &mut rng,
+                mutagen::State::default(),
+            )),
+            root_offset_node: Box::new(SNPointNodes::generate_rng(
+                &mut rng,
+                mutagen::State::default(),
+            )),
+            root_from_scale_node: Box::new(SNPointNodes::generate_rng(
+                &mut rng,
+                mutagen::State::default(),
+            )),
+            root_to_scale_node: Box::new(SNPointNodes::generate_rng(
+                &mut rng,
+                mutagen::State::default(),
+            )),
+
+            apply_angle_node: Box::new(BooleanNodes::generate_rng(
+                &mut rng,
+                mutagen::State::default(),
+            )),
+            apply_translation_node: Box::new(BooleanNodes::generate_rng(
+                &mut rng,
+                mutagen::State::default(),
+            )),
+            apply_offset_node: Box::new(BooleanNodes::generate_rng(
+                &mut rng,
+                mutagen::State::default(),
+            )),
+            apply_scale_node: Box::new(BooleanNodes::generate_rng(
                 &mut rng,
                 mutagen::State::default(),
             )),
@@ -211,6 +305,7 @@ struct UpdateStat {
     //--If all neighbours are similar, we have close to a flat color
     //--If all neighbours are distinct, we have visual noise
     activity_value: f32,
+    alpha_value: f32,
     local_similarity_value: f32,
     global_similarity_value: f32,
 }
@@ -221,6 +316,7 @@ impl Add<UpdateStat> for UpdateStat {
     fn add(self, other: UpdateStat) -> UpdateStat {
         UpdateStat {
             activity_value: self.activity_value + other.activity_value,
+            alpha_value: self.alpha_value + other.alpha_value,
             local_similarity_value: self.local_similarity_value + other.local_similarity_value,
             global_similarity_value: self.global_similarity_value + other.global_similarity_value,
         }
@@ -233,6 +329,7 @@ impl Div<f32> for UpdateStat {
     fn div(self, other: f32) -> UpdateStat {
         UpdateStat {
             activity_value: self.activity_value / other,
+            alpha_value: self.alpha_value / other,
             local_similarity_value: self.local_similarity_value / other,
             global_similarity_value: self.global_similarity_value / other,
         }
@@ -252,6 +349,10 @@ impl AddAssign<UpdateStat> for UpdateStat {
     fn add_assign(&mut self, other: UpdateStat) {
         *self = *self + other;
     }
+}
+
+fn lerp(a: f32, b: f32, value: f32) -> f32 {
+    a + (b - a) * value
 }
 
 impl EventHandler for MyGame {
@@ -300,13 +401,19 @@ impl EventHandler for MyGame {
             new[0] = new_color.r;
             new[1] = new_color.g;
             new[2] = new_color.b;
+            new[3] = new_color.a;
 
             let current_color = history.get(x, y, current_t);
             let older_color = history.get(x, y, usize::max(current_t, 1) - 1);
 
-            //TODO this should be a random neighbour
             let local_offset = (thread_rng().gen_range(-1, 2), thread_rng().gen_range(-1, 2));
-            let local_color = history.get((x as i32 + local_offset.0).max(0).min(CONSTS.cell_array_width as i32 - 1) as usize, (y as i32 + local_offset.1).min(CONSTS.cell_array_height as i32 - 1) as usize, current_t);
+            let local_color = history.get(
+                (x as i32 + local_offset.0)
+                    .max(0)
+                    .min(CONSTS.cell_array_width as i32 - 1) as usize,
+                (y as i32 + local_offset.1).min(CONSTS.cell_array_height as i32 - 1) as usize,
+                current_t,
+            );
             let global_color = history.get(
                 random::<usize>() % CONSTS.cell_array_width,
                 random::<usize>() % CONSTS.cell_array_height,
@@ -318,6 +425,7 @@ impl EventHandler for MyGame {
                     - get_average(current_color.into()))
                 .abs()
                     / total_cells as f32,
+                alpha_value: (current_color.a as f32 / 256.0) / total_cells as f32,
                 local_similarity_value: (1.0
                     - (get_average(local_color.into()) - get_average(current_color.into())).abs())
                     / total_cells as f32,
@@ -349,22 +457,164 @@ impl EventHandler for MyGame {
 
             self.rolling_update_stat_total = UpdateStat {
                 activity_value: 0.0,
+                alpha_value: 0.0,
                 local_similarity_value: 0.0,
                 global_similarity_value: 0.0,
             };
 
             if self.tree_dirty
-                || (self.rng.gen::<f64>() * dbg!(f64::from(self.average_update_stat.activity_value)) < CONSTS.activity_value_lower_bound
-                //|| self.rng.gen::<f64>() * dbg!(f64::from(self.average_update_stat.local_similarity_value)) > CONSTS.local_similarity_upper_bound
-                || dbg!(f64::from(self.average_update_stat.global_similarity_value)) >= CONSTS.global_similarity_upper_bound)
-                || self.average_update_stat.activity_value > 0.5
+                || dbg!(f64::from(self.average_update_stat.activity_value)) < CONSTS.activity_value_lower_bound
+                || dbg!(f64::from(self.average_update_stat.alpha_value)) < CONSTS.alpha_value_lower_bound
+                || dbg!(f64::from(self.average_update_stat.local_similarity_value)) > CONSTS.local_similarity_upper_bound
+                || dbg!(f64::from(self.average_update_stat.global_similarity_value)) >= CONSTS.global_similarity_upper_bound
+                // || self.average_update_stat.activity_value > 0.5
             {
                 info!("====TIC: {} MUTATING TREE====", self.current_t);
                 self.root_node
                     .mutate_rng(&mut self.rng, mutagen::State::default());
                 info!("{:#?}", &self.root_node);
+
+                match thread_rng().gen::<usize>() % 9 {
+                    0 => {
+                        self.root_angle_node
+                            .mutate_rng(&mut self.rng, mutagen::State::default());
+                        info!("{:#?}", &self.root_angle_node);
+                    }
+                    1 => {
+                        self.root_translation_node
+                            .mutate_rng(&mut self.rng, mutagen::State::default());
+                        info!("{:#?}", &self.root_translation_node);
+                    }
+                    2 => {
+                        self.root_offset_node
+                            .mutate_rng(&mut self.rng, mutagen::State::default());
+                        info!("{:#?}", &self.root_offset_node);
+                    }
+                    3 => {
+                        self.root_from_scale_node
+                            .mutate_rng(&mut self.rng, mutagen::State::default());
+                        info!("{:#?}", &self.root_from_scale_node);
+                    }
+                    4 => {
+                        self.root_to_scale_node
+                            .mutate_rng(&mut self.rng, mutagen::State::default());
+                        info!("{:#?}", &self.root_to_scale_node);
+                    }
+                    5 => {
+                        self.apply_angle_node
+                            .mutate_rng(&mut self.rng, mutagen::State::default());
+                        info!("{:#?}", &self.apply_angle_node);
+                    }
+                    6 => {
+                        self.apply_translation_node
+                            .mutate_rng(&mut self.rng, mutagen::State::default());
+                        info!("{:#?}", &self.apply_translation_node);
+                    }
+                    7 => {
+                        self.apply_offset_node
+                            .mutate_rng(&mut self.rng, mutagen::State::default());
+                        info!("{:#?}", &self.apply_offset_node);
+                    }
+                    8 => {
+                        self.apply_scale_node
+                            .mutate_rng(&mut self.rng, mutagen::State::default());
+                        info!("{:#?}", &self.apply_scale_node);
+                    }
+                    _ => {
+                        panic!();
+                    }
+                }
                 self.tree_dirty = false;
             }
+
+            self.next_history_step.rotation = self
+                .root_angle_node
+                .compute(UpdateState {
+                    coordinate_set: CoordinateSet {
+                        x: SNFloat::new(0.0),
+                        y: SNFloat::new(0.0),
+                        t: self.current_t as f32,
+                    },
+                    history: &self.history,
+                })
+                .into_inner();
+            self.next_history_step.translation = self.root_translation_node.compute(UpdateState {
+                coordinate_set: CoordinateSet {
+                    x: SNFloat::new(0.0),
+                    y: SNFloat::new(0.0),
+                    t: self.current_t as f32,
+                },
+                history: &self.history,
+            });
+            self.next_history_step.offset = self.root_offset_node.compute(UpdateState {
+                coordinate_set: CoordinateSet {
+                    x: SNFloat::new(0.0),
+                    y: SNFloat::new(0.0),
+                    t: self.current_t as f32,
+                },
+                history: &self.history,
+            });
+            self.next_history_step.from_scale = self.root_from_scale_node.compute(UpdateState {
+                coordinate_set: CoordinateSet {
+                    x: SNFloat::new(0.0),
+                    y: SNFloat::new(0.0),
+                    t: self.current_t as f32,
+                },
+                history: &self.history,
+            });
+            self.next_history_step.to_scale = self.root_to_scale_node.compute(UpdateState {
+                coordinate_set: CoordinateSet {
+                    x: SNFloat::new(0.0),
+                    y: SNFloat::new(0.0),
+                    t: self.current_t as f32,
+                },
+                history: &self.history,
+            });
+
+            self.next_history_step.apply_rotation = self
+                .apply_angle_node
+                .compute(UpdateState {
+                    coordinate_set: CoordinateSet {
+                        x: SNFloat::new(0.0),
+                        y: SNFloat::new(0.0),
+                        t: self.current_t as f32,
+                    },
+                    history: &self.history,
+                })
+                .into_inner();
+            self.next_history_step.apply_translation = self
+                .apply_translation_node
+                .compute(UpdateState {
+                    coordinate_set: CoordinateSet {
+                        x: SNFloat::new(0.0),
+                        y: SNFloat::new(0.0),
+                        t: self.current_t as f32,
+                    },
+                    history: &self.history,
+                })
+                .into_inner();
+            self.next_history_step.apply_offset = self
+                .apply_offset_node
+                .compute(UpdateState {
+                    coordinate_set: CoordinateSet {
+                        x: SNFloat::new(0.0),
+                        y: SNFloat::new(0.0),
+                        t: self.current_t as f32,
+                    },
+                    history: &self.history,
+                })
+                .into_inner();
+            self.next_history_step.apply_scale = self
+                .apply_scale_node
+                .compute(UpdateState {
+                    coordinate_set: CoordinateSet {
+                        x: SNFloat::new(0.0),
+                        y: SNFloat::new(0.0),
+                        t: self.current_t as f32,
+                    },
+                    history: &self.history,
+                })
+                .into_inner();
 
             self.next_history_step.computed_texture =
                 compute_texture(ctx, self.next_history_step.cell_array.view());
@@ -385,7 +635,7 @@ impl EventHandler for MyGame {
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
-        graphics::clear(ctx, graphics::WHITE);
+        graphics::clear(ctx, graphics::BLACK);
 
         let base_params = DrawParam::new().dest([0.0, 0.0]).scale([
             self.bounds.w as f32 / CONSTS.cell_array_width as f32,
@@ -400,18 +650,77 @@ impl EventHandler for MyGame {
         // let mut alphas = Vec::new();
         for i in 0..lerp_len {
             //let transparency = if i == 0 {1.0} else {if i == 1 {0.5} else {0.0}};
-            let alpha = 1.0
-                - ((i as f32 - lerp_value) / (lerp_len - 1) as f32)
-                    .max(0.0)
-                    .powf(CONSTS.lerp_aggressiveness);
+            let alpha = 
+            1.0 - 
+            ((i as f32 - lerp_value) / (lerp_len - 1) as f32).max(0.0)
+                    //.powf(CONSTS.lerp_aggressiveness)
+                    ;
 
             let hist_len = self.history.history_steps.len();
             let history_index = (self.current_t + i + hist_len - lerp_len) % hist_len;
+            let history_step = &self.history.history_steps[history_index];
+
+            let dest_offset_x = if history_step.apply_translation {
+                (CONSTS.initial_window_width
+                    * history_step.translation.into_inner().x
+                    * 0.5
+                    * (1.0 - alpha))
+            } else {
+                0.0
+            };
+            let dest_offset_y = if history_step.apply_translation {
+                (CONSTS.initial_window_height
+                    * history_step.translation.into_inner().y
+                    * 0.5
+                    * (1.0 - alpha))
+            } else {
+                0.0
+            };
+
+            let offset_offset_x = if history_step.apply_offset {
+                (history_step.offset.into_inner().x * 0.5 * (1.0 - alpha))
+            } else {
+                0.0
+            };
+            let offset_offset_y = if history_step.apply_offset {
+                (history_step.offset.into_inner().y * 0.5 * (1.0 - alpha))
+            } else {
+                0.0
+            };
+
+            let x_scale_ratio = CONSTS.initial_window_width / CONSTS.cell_array_width as f32;
+            let y_scale_ratio = CONSTS.initial_window_height / CONSTS.cell_array_height as f32;
+
+            let scale_x = if history_step.apply_scale {
+                lerp(1.0 + history_step.from_scale.into_inner().x, 1.0 + history_step.to_scale.into_inner().x, alpha)
+            } else {
+                0.0
+            };
+            let scale_y = if history_step.apply_scale {
+                lerp(1.0 + history_step.from_scale.into_inner().y, 1.0 + history_step.to_scale.into_inner().y, alpha)
+            } else {
+                0.0
+            };
+
+            let rotation = if history_step.apply_rotation {
+                (1.0 - alpha) * history_step.rotation * 3.14
+            } else {
+                0.0
+            };
 
             ggez::graphics::draw(
                 ctx,
-                &self.history.history_steps[history_index].computed_texture,
-                base_params.color(GgColor::new(1.0, 1.0, 1.0, alpha)),
+                &history_step.computed_texture,
+                base_params
+                    .color(GgColor::new(1.0, 1.0, 1.0, 1.0 - ((alpha * 2.0) - 1.0).abs()))
+                    .dest([
+                        ((CONSTS.initial_window_width * 0.5) + dest_offset_x * scale_x),
+                        ((CONSTS.initial_window_height * 0.5) + dest_offset_y * scale_y),
+                    ])
+                    // .offset([0.5 + offset_offset_x, 0.5 + offset_offset_y])
+                    .offset([0.5, 0.5])
+                    .scale([(1.0 + scale_x) * x_scale_ratio, (1.0 + scale_y) * y_scale_ratio])
+                    .rotation(rotation),
             )?;
 
             // alphas.push(alpha);

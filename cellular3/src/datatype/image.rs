@@ -7,7 +7,7 @@ use std::{
 };
 
 use failure::{format_err, Fallible};
-use image::{gif, imageops, AnimationDecoder, DynamicImage, FilterType, ImageFormat, RgbImage};
+use image::{gif, imageops, AnimationDecoder, FilterType, ImageFormat, RgbaImage};
 use lazy_static::lazy_static;
 use log::{debug, error, warn};
 use mutagen::{Generatable, Mutatable};
@@ -37,7 +37,7 @@ lazy_static! {
 }
 
 thread_local! {
-    pub static IMAGE_PRELOADER: Preloader<Image> = Preloader::new(10, RandomImageLoader::new());
+    pub static IMAGE_PRELOADER: Preloader<Image> = Preloader::new(32, RandomImageLoader::new());
 }
 
 const FALLBACK_IMAGE_DATA: &[u8] =
@@ -78,7 +78,8 @@ fn download_random_image(client: &mut HttpClient) -> Fallible<Image> {
     let mut response = client
         .get(&format!(
             "https://picsum.photos/{}/{}",
-            CONSTS.cell_array_width, CONSTS.cell_array_height,
+            CONSTS.initial_window_width.floor() as usize,
+            CONSTS.initial_window_height.floor() as usize,
         ))
         .send()?
         .error_for_status()?;
@@ -122,11 +123,11 @@ pub struct Image(Arc<ImageData>);
 
 pub struct ImageData {
     name: String,
-    frames: Vec<RgbImage>,
+    frames: Vec<RgbaImage>,
 }
 
 impl Image {
-    pub fn new(name: String, frames: Vec<RgbImage>) -> Self {
+    pub fn new(name: String, frames: Vec<RgbaImage>) -> Self {
         Self(Arc::new(ImageData { name, frames }))
     }
 
@@ -182,7 +183,7 @@ impl Image {
 fn load_frames<R: BufRead + Seek>(
     reader: R,
     format: ImageFormat,
-) -> image::ImageResult<Vec<RgbImage>> {
+) -> image::ImageResult<Vec<RgbaImage>> {
     // Special handling for gifs in case they are animated
     match format {
         ImageFormat::GIF => Ok(gif::Decoder::new(reader)?
@@ -191,7 +192,7 @@ fn load_frames<R: BufRead + Seek>(
             .into_iter()
             .map(|f| {
                 imageops::resize(
-                    &DynamicImage::ImageRgba8(f.into_buffer()).to_rgb(),
+                    &f.into_buffer(),
                     CONSTS.cell_array_width as u32,
                     CONSTS.cell_array_height as u32,
                     FilterType::Gaussian,
@@ -200,7 +201,7 @@ fn load_frames<R: BufRead + Seek>(
             .collect()),
 
         _ => Ok(vec![imageops::resize(
-            &image::load(reader, format)?.to_rgb(),
+            &image::load(reader, format)?.to_rgba(),
             CONSTS.cell_array_width as u32,
             CONSTS.cell_array_height as u32,
             FilterType::Gaussian,

@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 
 use rand::prelude::*;
 
-use crate::util::*;
+use crate::{datatype::discrete::*, util::*};
 
 #[derive(Clone, Copy, Debug)]
 pub struct UNFloat {
@@ -38,6 +38,11 @@ impl UNFloat {
 
     pub fn to_signed(self) -> SNFloat {
         SNFloat::new_from_range(self.value, 0.0, 1.0)
+    }
+
+    pub fn subdivide(self, divisor: Nibble) -> UNFloat {
+        let total = self.into_inner() * divisor.into_inner() as f32;
+        UNFloat::new(total - total.floor())
     }
 }
 
@@ -96,6 +101,12 @@ impl SNFloat {
     //TODO: There is a bug here, the circular add will probably reset to 0 when overflowed instead of -1 or 1
     pub fn circular_add_f32(self, other: f32) -> SNFloat {
         let total = self.into_inner() + other;
+        let sign = total.signum();
+        SNFloat::new((total.abs() - total.abs().floor()) * sign)
+    }
+
+    pub fn subdivide(self, divisor: Nibble) -> SNFloat {
+        let total = self.into_inner() * divisor.into_inner() as f32;
         let sign = total.signum();
         SNFloat::new((total.abs() - total.abs().floor()) * sign)
     }

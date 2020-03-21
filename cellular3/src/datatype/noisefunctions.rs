@@ -2,7 +2,7 @@ use crate::datatype::continuous::UNFloat;
 use mutagen::{Generatable, Mutatable};
 use noise::{
     BasicMulti, Billow, Checkerboard, Fbm, HybridMulti, OpenSimplex, RangeFunction, RidgedMulti,
-    SuperSimplex, Value, Worley, Seedable,
+    Seedable, SuperSimplex, Value, Worley,
 };
 use rand::prelude::*;
 
@@ -369,7 +369,8 @@ impl Generatable for WorleyNoise {
                     3 => RangeFunction::Chebyshev,
                     4 => RangeFunction::Quadratic,
                     _ => panic!(),
-                }).set_seed(rng.gen::<u32>()),
+                })
+                .set_seed(rng.gen::<u32>()),
         }
     }
 }
@@ -404,16 +405,17 @@ impl Mutatable for WorleyNoise {
             }
             6 => {
                 self.noise = Worley::new()
-                .enable_range(rng.gen())
-                .set_displacement(rng.gen())
-                .set_range_function(match rng.gen_range(0, 5) {
-                    0 => RangeFunction::Euclidean,
-                    1 => RangeFunction::EuclideanSquared,
-                    2 => RangeFunction::Manhattan,
-                    3 => RangeFunction::Chebyshev,
-                    4 => RangeFunction::Quadratic,
-                    _ => panic!(),
-                }).set_seed(rng.gen::<u32>());
+                    .enable_range(rng.gen())
+                    .set_displacement(rng.gen())
+                    .set_range_function(match rng.gen_range(0, 5) {
+                        0 => RangeFunction::Euclidean,
+                        1 => RangeFunction::EuclideanSquared,
+                        2 => RangeFunction::Manhattan,
+                        3 => RangeFunction::Chebyshev,
+                        4 => RangeFunction::Quadratic,
+                        _ => panic!(),
+                    })
+                    .set_seed(rng.gen::<u32>());
             }
             _ => panic!(),
         };
